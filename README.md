@@ -35,22 +35,11 @@ BoscoStudio.sln
 
 Request trace: `Controller → IXxxService → PhotoStudioDbContext → SQL`. Nothing else.
 
-## Re-scaffolding after a schema change
-
-Edit/extend the SQL, apply it, then from `BoscoStudio/`:
-
-```powershell
-dotnet ef dbcontext scaffold "Server=MARIALEO;Database=PhotoStudioDB;User Id=sa;Password=ciglobal123;TrustServerCertificate=True;" Microsoft.EntityFrameworkCore.SqlServer --output-dir Domain/Entities --context-dir Infrastructure/Data --context PhotoStudioDbContext --namespace BoscoStudio.Domain.Entities --context-namespace BoscoStudio.Infrastructure.Data --data-annotations --no-onconfiguring --force
-```
-
-`--no-onconfiguring` keeps the connection string out of the generated context (it is registered in `Program.cs`).
-Hand-written code lives in `Domain/Partials`, `Application` and `Infrastructure/Security`, so `--force` never touches it.
-
 ## Local setup
 
 1. **Database**
    * *New machine:* SSMS → connect to `MARIALEO` (SQL auth, `sa`) → open `Database/PhotoStudioDB.sql` → Execute.
-     (Command line: `sqlcmd -S MARIALEO -U sa -P ciglobal123 -C -I -i Database\PhotoStudioDB.sql` – `-I` is required.)
+     (Command line: `sqlcmd -S (Server Name) -U sa -P (Password) -C -I -i Database\PhotoStudioDB.sql` – `-I` is required.)
    * *Existing database from the first version:* run only `Database/002_EventTypes_Documents_Upgrade.sql`.
      It adds the EventTypes table, links orders/packages to it, and removes duplicate quotations (keeps the oldest per order).
    Verify: `SELECT * FROM PhotoStudioDB.dbo.OwnerAccounts;` returns one row.
@@ -83,6 +72,3 @@ Login · Dashboard · Orders (list, create/edit form, detail with payments / exp
 Calendar (Month/Week/Day) · Albums · Payments ledger · Quotations & invoices (list, print/PDF view, edit) ·
 **Settings** (studio details printed on documents, event types, packages per event type).
 
-## Not built yet
-
-Editing client records; multi-line custom invoice items; changing the owner password from the UI.
