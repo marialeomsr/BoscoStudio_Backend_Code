@@ -1,0 +1,275 @@
+@if (order(); as o) {
+  <header class="head">
+    <div>
+      <h1>{{ o.client.fullName }}</h1>
+      <p class="muted">{{ o.orderNumber }} · {{ o.eventType }} · {{ o.eventDate | date: 'EEE, d MMM yyyy' }}</p>
+    </div>
+    <app-status-badge [status]="o.orderStatus" />
+  </header>
+
+  <div class="chips no-print" role="group" aria-label="Order actions">
+    @if (canEdit()) { <a mat-stroked-button [routerLink]="['/orders', o.orderId, 'edit']"><mat-icon>edit</mat-icon> Edit</a> }
+    <!-- One quotation / invoice per order: open the existing one (and edit it there) instead of creating another. -->
+    @if (documentOf('Quotation'); as q) {
+      <a mat-stroked-button [routerLink]="['/invoices', q.documentId]"><mat-icon>request_quote</mat-icon> Quotation {{ q.documentNumber }}</a>
+    } @else if (o.orderStatus !== 'Cancelled') {
+      <button mat-stroked-button [disabled]="busy()" (click)="issueDocument('Quotation')"><mat-icon>request_quote</mat-icon> Create quotation</button>
+    }
+    @if (documentOf('Invoice'); as inv) {
+      <a mat-stroked-button [routerLink]="['/invoices', inv.documentId]"><mat-icon>receipt</mat-icon> Invoice {{ inv.documentNumber }}</a>
+    } @else if (canInvoice()) {
+      <button mat-stroked-button [disabled]="busy()" (click)="issueDocument('Invoice')"><mat-icon>receipt</mat-icon> Create invoice</button>
+    }
+    @if (canDelete()) {
+      <button mat-button class="danger" [disabled]="busy()" (click)="deleteOrder()"><mat-icon>delete_forever</mat-icon> Delete order</button>
+    }
+  </div>
+
+  <!-- Status actions: horizontally scrollable chips on a phone -->
+  @if (o.allowedNextStatuses.length) {
+    <div class="chips" role="group" aria-label="Move order to">
+      @for (s of o.allowedNextStatuses; track s) {
+        <button mat-stroked-button [disabled]="busy()" (click)="changeStatus(s)">{{ s }}</button>
+      }
+    </div>
+  }
+
+  <div class="layout">
+    <!-- ===== LEFT: who / when / money ===== -->
+    <div class="col">
+      <section class="card">
+        <h2>Client &amp; schedule</h2>
+        <p>
+          <a [href]="'tel:' + o.client.phone"><mat-icon inline>call</mat-icon> {{ o.client.phone }}</a>
+          @if (o.client.whatsAppNo) {
+            · <a [href]="'https://wa.me/' + o.client.whatsAppNo.replace('+', '')" target="_blank" rel="noopener">WhatsApp</a>
+          }
+        </p>
+        @if (o.venue) { <p><mat-icon inline>place</mat-icon> {{ o.venue }}</p> }
+        <ul class="plain">
+          @for (s of o.slots; track s.slotId) {
+            <li>{{ s.eventDate | date: 'd MMM' }} · {{ s.startTime.slice(0, 5) }}–{{ s.endTime.slice(0, 5) }}
+              @if (s.title) { · {{ s.title }} }</li>
+          }
+        </ul>
+        @if (o.packageName) { <p class="muted">Package: {{ o.packageName }}</p> }
+      </section>
+
+      <section class="card">
+        <h2>Money</h2>
+        <dl class="money">
+          <dt>Package</dt><dd>{{ o.packageAmount | inr }}</dd>
+          <dt>Discount</dt><dd>− {{ o.discountAmount | inr }}</dd>
+          <dt>Tax ({{ o.taxPercent }}%)</dt><dd>{{ o.taxAmount | inr }}</dd>
+          <dt class="strong">Total</dt><dd class="strong">{{ o.totalAmount | inr }}</dd>
+          <dt>Paid</dt><dd class="ok">{{ o.totalPaid | inr }}</dd>
+          <dt class="strong">Balance due</dt><dd class="strong" [class.due]="o.balanceDue > 0">{{ o.balanceDue | inr }}</dd>
+        </dl>
+        <div class="bar" [attr.aria-label]="paidPercent() + '% paid'"><span [style.width.%]="paidPercent()"></span></div>
+        <p class="muted">Expenses {{ o.totalExpenses | inr }} · Net profit so far <strong>{{ o.netProfit | inr }}</strong></p>
+      </section>
+
+      <!-- ===== Payments ===== -->
+      <section class="card">
+        <div class="section-head">
+          <h2>Payments</h2>
+          @if (canRecordPayment()) {
+            <button mat-flat-button (click)="showPaymentForm.set(!showPaymentForm())"><mat-icon>add</mat-icon> Payment</button>
+          }
+        </div>
+
+        @if (showPaymentForm()) {
+          <form class="form" [formGroup]="paymentForm" (ngSubmit)="savePayment()">
+            <mat-form-field appearance="outline"><mat-label>Type</mat-label>
+              <mat-select formControlName="paymentType">@for (t of paymentTypes; track t) { <mat-option [value]="t">{{ t }}</mat-option> }</mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline"><mat-label>Mode</mat-label>
+              <mat-select formControlName="paymentMode">@for (m of paymentModes; track m) { <mat-option [value]="m">{{ m }}</mat-option> }</mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline"><mat-label>Amount</mat-label>
+              <input matInput type="number" inputmode="decimal" formControlName="amount" />
+              <button mat-button matSuffix type="button" (click)="fillBalance()">Full balance</button>
+            </mat-form-field>
+            <mat-form-field appearance="outline"><mat-label>Date</mat-label>
+              <input matInput type="date" formControlName="paymentDate" />
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="wide"><mat-label>Transaction ref (optional)</mat-label>
+              <input matInput formControlName="transactionRef" />
+            </mat-form-field>
+            <div class="actions wide">
+              <button mat-button type="button" (click)="showPaymentForm.set(false)">Close</button>
+              <button mat-flat-button type="submit" [disabled]="paymentForm.invalid || busy()">Save payment</button>
+            </div>
+          </form>
+        }
+
+        <!-- Table on desktop; each row becomes a card under 720px -->
+        <table class="grid">
+          <thead><tr><th>Date</th><th>Type</th><th>Mode</th><th>Ref</th><th class="num">Amount</th><th></th></tr></thead>
+          <tbody>
+            @for (p of o.payments; track p.paymentId) {
+              <tr>
+                <td data-label="Date">{{ p.paymentDate | date: 'd MMM yyyy' }}</td>
+                <td data-label="Type">{{ p.paymentType }}</td>
+                <td data-label="Mode">{{ p.paymentMode }}</td>
+                <td data-label="Ref">{{ p.transactionRef || '—' }}</td>
+                <td data-label="Amount" class="num">{{ p.amount | inr }}</td>
+                <td class="end"><button mat-icon-button aria-label="Delete payment" (click)="deletePayment(p.paymentId)"><mat-icon>delete</mat-icon></button></td>
+              </tr>
+            } @empty { <tr><td colspan="6" class="muted">No payments yet.</td></tr> }
+          </tbody>
+        </table>
+      </section>
+    </div>
+
+    <!-- ===== RIGHT: workflow ===== -->
+    <div class="col">
+      <!-- ===== Albums ===== -->
+      <section class="card">
+        <div class="section-head">
+          <h2>Albums</h2>
+          @if (o.orderStatus !== 'Cancelled') {
+            <button mat-flat-button (click)="showAlbumForm.set(!showAlbumForm())"><mat-icon>add</mat-icon> Album</button>
+          }
+        </div>
+
+        @if (showAlbumForm()) {
+          <form class="form" [formGroup]="albumForm" (ngSubmit)="saveAlbum()">
+            <mat-form-field appearance="outline" class="wide"><mat-label>Album type</mat-label>
+              <input matInput formControlName="albumType" placeholder="Premium flush mount 12x36" />
+            </mat-form-field>
+            <mat-form-field appearance="outline"><mat-label>Sheets</mat-label>
+              <input matInput type="number" inputmode="numeric" formControlName="sheetCount" />
+            </mat-form-field>
+            <mat-form-field appearance="outline"><mat-label>Print cost</mat-label>
+              <input matInput type="number" inputmode="decimal" formControlName="printCost" />
+            </mat-form-field>
+            <mat-form-field appearance="outline"><mat-label>Print vendor</mat-label>
+              <input matInput formControlName="printVendorName" />
+            </mat-form-field>
+            <mat-form-field appearance="outline"><mat-label>Vendor contact</mat-label>
+              <input matInput formControlName="printVendorContact" />
+            </mat-form-field>
+            <div class="actions wide">
+              <button mat-button type="button" (click)="showAlbumForm.set(false)">Close</button>
+              <button mat-flat-button type="submit" [disabled]="albumForm.invalid || busy()">Add album</button>
+            </div>
+          </form>
+        }
+
+        @for (a of o.albums; track a.albumId) {
+          <article class="album">
+            <div class="section-head">
+              <strong>{{ a.albumType }}</strong>
+              <span class="muted">{{ a.sheetCount }} sheets@if (a.printVendorName) { · {{ a.printVendorName }} }</span>
+            </div>
+
+            <!-- Vertical list on phones, horizontal stepper on desktop -->
+            <ol class="stages">
+              @for (s of albumStages; track s) {
+                <li [class]="stageState(a, s)"><span class="dot"></span>{{ s }}</li>
+              }
+            </ol>
+
+            @if (a.printVendorName) {
+              <p class="muted">Vendor: {{ a.printVendorName }}@if (a.printVendorContact) { ({{ a.printVendorContact }}) }@if (a.printCost !== null) { · {{ a.printCost | inr }} }</p>
+            } @else { <p class="muted">No print vendor yet.</p> }
+
+            <div class="actions">
+              <button mat-button [disabled]="busy()" (click)="editAlbum(a)"><mat-icon>edit</mat-icon> Edit details</button>
+              @if (previousStage(a); as prev) {
+                <button mat-button [disabled]="busy()" (click)="moveAlbum(a, prev)">Back</button>
+              }
+              @if (a.nextStage; as next) {
+                <button mat-flat-button [disabled]="busy()" (click)="moveAlbum(a, next)">{{ next }}</button>
+              } @else { <span class="ok">✔ Completed</span> }
+            </div>
+          </article>
+        } @empty { <p class="muted">No albums for this order.</p> }
+      </section>
+
+      <!-- ===== Expenses ===== -->
+      <section class="card">
+        <div class="section-head">
+          <h2>Expenses</h2>
+          <button mat-stroked-button (click)="showExpenseForm.set(!showExpenseForm())"><mat-icon>add</mat-icon> Expense</button>
+        </div>
+
+        @if (showExpenseForm()) {
+          <form class="form" [formGroup]="expenseForm" (ngSubmit)="saveExpense()">
+            <mat-form-field appearance="outline"><mat-label>Category</mat-label>
+              <mat-select formControlName="category">@for (c of expenseCategories; track c) { <mat-option [value]="c">{{ c }}</mat-option> }</mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline"><mat-label>Amount</mat-label>
+              <input matInput type="number" inputmode="decimal" formControlName="amount" />
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="wide"><mat-label>Description</mat-label>
+              <input matInput formControlName="description" />
+            </mat-form-field>
+            <div class="actions wide">
+              <button mat-button type="button" (click)="showExpenseForm.set(false)">Close</button>
+              <button mat-flat-button type="submit" [disabled]="expenseForm.invalid || busy()">Save</button>
+            </div>
+          </form>
+        }
+
+        <ul class="plain list">
+          @for (e of o.expenses; track e.expenseId) {
+            <li>
+              <span>{{ e.category }}@if (e.description) { <small class="muted"> · {{ e.description }}</small> }</span>
+              <span>{{ e.amount | inr }}
+                <button mat-icon-button aria-label="Remove expense" (click)="deleteExpense(e.expenseId)"><mat-icon>close</mat-icon></button></span>
+            </li>
+          } @empty { <li class="muted">No expenses recorded.</li> }
+        </ul>
+      </section>
+
+      <!-- ===== Deliverables ===== -->
+      @if (o.orderStatus !== 'Cancelled') {
+        <section class="card">
+          <div class="section-head">
+            <h2>Deliverables</h2>
+            <button mat-stroked-button (click)="showDeliverableForm() ? showDeliverableForm.set(false) : openDeliverableForm()">{{ showDeliverableForm() ? 'Close' : 'Update' }}</button>
+          </div>
+
+          @if (showDeliverableForm()) {
+            <form class="form" [formGroup]="deliverableForm" (ngSubmit)="saveDeliverable()">
+              <mat-form-field appearance="outline"><mat-label>Raw backup</mat-label>
+                <mat-select formControlName="rawBackupStatus">@for (s of workStatuses; track s) { <mat-option [value]="s">{{ s }}</mat-option> }</mat-select></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Selection by</mat-label>
+                <mat-select formControlName="selectionMode"><mat-option value="Client Selection">Client</mat-option><mat-option value="Studio Selection">Studio</mat-option></mat-select></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Photo selection</mat-label>
+                <mat-select formControlName="selectionStatus">@for (s of workStatuses; track s) { <mat-option [value]="s">{{ s }}</mat-option> }</mat-select></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Photo editing</mat-label>
+                <mat-select formControlName="photoEditStatus">@for (s of workStatuses; track s) { <mat-option [value]="s">{{ s }}</mat-option> }</mat-select></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Teaser edit</mat-label>
+                <mat-select formControlName="teaserEditStatus">@for (s of workStatuses; track s) { <mat-option [value]="s">{{ s }}</mat-option> }</mat-select></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Full film edit</mat-label>
+                <mat-select formControlName="fullFilmEditStatus">@for (s of workStatuses; track s) { <mat-option [value]="s">{{ s }}</mat-option> }</mat-select></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Delivery via</mat-label>
+                <mat-select formControlName="cloudProvider"><mat-option value="">�</mat-option>@for (p of cloudProviders; track p) { <mat-option [value]="p">{{ p }}</mat-option> }</mat-select></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Delivered on</mat-label><input matInput type="date" formControlName="deliveredOn" /></mat-form-field>
+              <mat-form-field appearance="outline" class="wide"><mat-label>Delivery link</mat-label><input matInput type="url" formControlName="cloudLink" placeholder="https://" /></mat-form-field>
+              <div class="actions wide"><button mat-flat-button type="submit" [disabled]="busy()">Save deliverables</button></div>
+            </form>
+          } @else if (o.deliverable; as d) {
+            <ul class="plain list">
+              <li><span>Raw backup</span><app-status-badge [status]="d.rawBackupStatus" /></li>
+              <li><span>Selection ({{ d.selectionMode }})</span><app-status-badge [status]="d.selectionStatus" /></li>
+              <li><span>Photo editing</span><app-status-badge [status]="d.photoEditStatus" /></li>
+              <li><span>Teaser</span><app-status-badge [status]="d.teaserEditStatus" /></li>
+              <li><span>Full film</span><app-status-badge [status]="d.fullFilmEditStatus" /></li>
+            </ul>
+            @if (d.cloudLink) { <p><a [href]="d.cloudLink" target="_blank" rel="noopener">Open {{ d.cloudProvider ?? 'delivery' }} link</a></p> }
+          } @else {
+            <p class="muted">Checklist not started. Tap �Update� to begin tracking.</p>
+          }
+        </section>
+      }    </div>
+  </div>
+} @else if (loadError()) {
+  <p class="error">{{ loadError() }}</p>
+} @else {
+  <p class="muted">Loading…</p>
+}
+

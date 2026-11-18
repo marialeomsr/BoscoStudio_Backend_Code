@@ -1,0 +1,69 @@
+:host { display: block; max-width: 1200px; margin: 0 auto; }
+
+h1 { margin: 0; font-size: 22px; }
+h2 { margin: 0 0 8px; font-size: 16px; font-weight: 500; }
+.muted { color: var(--mat-sys-on-surface-variant); margin: 2px 0; }
+.error { color: var(--mat-sys-error); }
+.ok { color: #2e7d32; }
+.due { color: var(--mat-sys-error); }
+.danger { color: var(--mat-sys-error); }
+.strong { font-weight: 600; }
+a { color: var(--mat-sys-primary); }
+ul.plain { list-style: none; margin: 0; padding: 0; }
+
+.head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+
+// Status actions: one scrollable row on phones.
+.chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 8px; button { flex: none; } }
+
+// ---- Two-column layout from 960px, one column below ----
+.layout { display: grid; gap: 16px; grid-template-columns: 1fr; }
+.col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+@media (min-width: 960px) { .layout { grid-template-columns: 1fr 1fr; align-items: start; } }
+
+.card {
+  background: var(--mat-sys-surface-container-low); border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 16px; padding: 16px;
+}
+.section-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+
+// ---- Money summary ----
+.money { display: grid; grid-template-columns: 1fr auto; row-gap: 6px; margin: 0 0 12px; dd { margin: 0; text-align: right; } dt { margin: 0; } }
+.bar { height: 8px; border-radius: 4px; background: var(--mat-sys-surface-variant); overflow: hidden; span { display: block; height: 100%; background: #2e7d32; } }
+
+// ---- Forms: 2 columns on tablet+, 1 on phones ----
+.form { display: grid; grid-template-columns: 1fr; gap: 0 12px; margin-bottom: 12px; }
+@media (min-width: 600px) { .form { grid-template-columns: 1fr 1fr; } .form .wide { grid-column: 1 / -1; } }
+.actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+
+// ---- Payments: table on desktop, cards on phones ----
+.grid { width: 100%; border-collapse: collapse; }
+.grid th, .grid td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--mat-sys-outline-variant); }
+.num { text-align: right !important; }
+.end { text-align: right; width: 48px; }
+@media (max-width: 719px) {
+  .grid thead { display: none; }
+  .grid tr, .grid td { display: block; }
+  .grid tr { border: 1px solid var(--mat-sys-outline-variant); border-radius: 12px; padding: 6px 12px; margin-bottom: 8px; position: relative; }
+  .grid td { display: flex; justify-content: space-between; border: 0; padding: 3px 0; text-align: right; }
+  .grid td[data-label]::before { content: attr(data-label); color: var(--mat-sys-on-surface-variant); }
+  .grid td.end { position: absolute; top: 0; right: 0; width: auto; }
+}
+
+.list li { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--mat-sys-outline-variant); gap: 8px; }
+
+// ---- Album stage tracker ----
+.album { border-top: 1px solid var(--mat-sys-outline-variant); padding: 12px 0 4px; }
+.stages { list-style: none; margin: 12px 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.stages li { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--mat-sys-on-surface-variant); }
+.dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--mat-sys-outline); flex: none; }
+.stages .done { color: var(--mat-sys-on-surface); .dot { background: #2e7d32; border-color: #2e7d32; } }
+.stages .current { color: var(--mat-sys-primary); font-weight: 600; .dot { border-color: var(--mat-sys-primary); background: var(--mat-sys-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--mat-sys-primary) 25%, transparent); } }
+@media (min-width: 720px) {
+  .stages { flex-direction: row; gap: 0; }
+  .stages li { flex: 1; flex-direction: column; text-align: center; font-size: 11px; position: relative; padding-top: 0; }
+  .stages li:not(:first-child)::before { content: ''; position: absolute; top: 6px; right: 50%; width: 100%; height: 2px; background: var(--mat-sys-outline-variant); z-index: 0; }
+  .stages li.done:not(:first-child)::before, .stages li.current::before { background: #2e7d32; }
+  .stages .dot { position: relative; z-index: 1; background: var(--mat-sys-surface-container-low); }
+  .stages .done .dot { background: #2e7d32; }
+}

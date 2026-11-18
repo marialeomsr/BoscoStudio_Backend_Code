@@ -1,0 +1,29 @@
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
+
+namespace BoscoStudio.Domain.Entities;
+
+[Index("Username", Name = "UQ_OwnerAccounts_Username", IsUnique = true)]
+public partial class OwnerAccount
+{
+    [Key]
+    public int OwnerId { get; set; }
+
+    [StringLength(50)]
+    public string Username { get; set; } = null!;
+
+    [StringLength(200)]
+    public string PasswordHash { get; set; } = null!;
+
+    [StringLength(100)]
+    public string FullName { get; set; } = null!;
+
+    [StringLength(150)]
+    public string? Email { get; set; }
+
+    [Precision(0)]
+    public DateTime CreatedAt { get; set; }
+}
