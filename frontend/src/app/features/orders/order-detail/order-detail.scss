@@ -11,25 +11,21 @@ h2 { margin: 0 0 8px; font-size: 16px; font-weight: 500; }
 a { color: var(--mat-sys-primary); }
 ul.plain { list-style: none; margin: 0; padding: 0; }
 
-.head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
 
-// Status actions: one scrollable row on phones.
-.chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 8px; button { flex: none; } }
+// Order actions + next-status buttons: wrap onto rows (no sideways scrolling).
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 
 // ---- Two-column layout from 960px, one column below ----
 .layout { display: grid; gap: 16px; grid-template-columns: 1fr; }
 .col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 @media (min-width: 960px) { .layout { grid-template-columns: 1fr 1fr; align-items: start; } }
 
-.card {
-  background: var(--mat-sys-surface-container-low); border: 1px solid var(--mat-sys-outline-variant);
-  border-radius: 16px; padding: 16px;
-}
+.panel { padding-top: 12px; }
 .section-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
 
 // ---- Money summary ----
 .money { display: grid; grid-template-columns: 1fr auto; row-gap: 6px; margin: 0 0 12px; dd { margin: 0; text-align: right; } dt { margin: 0; } }
-.bar { height: 8px; border-radius: 4px; background: var(--mat-sys-surface-variant); overflow: hidden; span { display: block; height: 100%; background: #2e7d32; } }
+.bar { height: 8px; border-radius: 4px; background: color-mix(in srgb, var(--accent) 15%, white); overflow: hidden; span { display: block; height: 100%; background: var(--accent); } }
 
 // ---- Forms: 2 columns on tablet+, 1 on phones ----
 .form { display: grid; grid-template-columns: 1fr; gap: 0 12px; margin-bottom: 12px; }

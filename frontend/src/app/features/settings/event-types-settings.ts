@@ -12,11 +12,12 @@ import { StudioApi } from '../../core/api/studio-api';
 import { EventTypeInfo } from '../../core/models/studio.models';
 import { describeError } from '../../shared/api-error';
 import { ConfirmDialog } from '../../shared/components/confirm-dialog';
+import { AutoError, eventTypeName, intRange } from '../../shared/validators';
 
 /** Add / rename / deactivate / delete event types. Packages and orders pick from this list. */
 @Component({
   selector: 'app-event-types-settings',
-  imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSlideToggleModule],
+  imports: [ReactiveFormsModule, AutoError, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSlideToggleModule],
   template: `
     <div class="head">
       <p class="intro">Event types appear in the order form. Each package belongs to one event type.</p>
@@ -25,8 +26,8 @@ import { ConfirmDialog } from '../../shared/components/confirm-dialog';
 
     @if (editingId() !== null) {
       <form class="editor" [formGroup]="form" (ngSubmit)="save()">
-        <mat-form-field appearance="outline"><mat-label>Name</mat-label><input matInput formControlName="eventTypeName" maxlength="30" /></mat-form-field>
-        <mat-form-field appearance="outline"><mat-label>Sort order</mat-label><input matInput type="number" formControlName="sortOrder" /></mat-form-field>
+        <mat-form-field appearance="outline"><mat-label>Name</mat-label><input matInput formControlName="eventTypeName" maxlength="30" /><mat-error auto></mat-error></mat-form-field>
+        <mat-form-field appearance="outline"><mat-label>Sort order</mat-label><input matInput type="number" formControlName="sortOrder" /><mat-error auto></mat-error></mat-form-field>
         <mat-slide-toggle formControlName="isActive">Active</mat-slide-toggle>
         <div class="row-actions">
           <button mat-button type="button" (click)="editingId.set(null)">Cancel</button>
@@ -71,8 +72,8 @@ export class EventTypesSettings {
   protected readonly busy = signal(false);
 
   protected readonly form = inject(NonNullableFormBuilder).group({
-    eventTypeName: ['', [Validators.required, Validators.maxLength(30)]],
-    sortOrder: [0],
+    eventTypeName: ['', [Validators.required, eventTypeName]],
+    sortOrder: [0, intRange(0, 1000)],
     isActive: [true],
   });
 

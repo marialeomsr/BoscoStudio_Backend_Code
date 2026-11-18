@@ -46,5 +46,6 @@ public static class Mappers
         o.Deliverable?.ToDto(),
         o.Albums.OrderBy(a => a.AlbumId).Select(a => a.ToDto(o.OrderNumber, o.Client.FullName)).ToList(),
         OrderStatuses.All.Where(s => OrderStatuses.CanMove(o.OrderStatus, s)).ToList(),
-        o.Documents.OrderBy(d => d.DocumentId).Select(d => new OrderDocumentRefDto(d.DocumentId, d.DocumentType, d.DocumentNumber)).ToList());
+        o.Documents.OrderBy(d => d.DocumentId).Select(d => new OrderDocumentRefDto(d.DocumentId, d.DocumentType, d.DocumentNumber)).ToList(),
+        o.TaxSplit, TaxSplits.Build(o.TaxPercent, o.TaxAmount ?? 0, o.TaxSplit, o.CgstPercent));
 }

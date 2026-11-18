@@ -7,35 +7,37 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { StudioApi } from '../../core/api/studio-api';
 import { StudioSettings } from '../../core/models/studio.models';
 import { describeError } from '../../shared/api-error';
+import { InputFilter } from '../../shared/input-filter';
+import { AutoError, email, httpUrl, percent, phone, taxRegistration } from '../../shared/validators';
 
 /** The details printed in the header and footer of every quotation and invoice. */
 @Component({
   selector: 'app-studio-settings-form',
-  imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatInputModule],
+  imports: [ReactiveFormsModule, InputFilter, AutoError, MatButtonModule, MatFormFieldModule, MatInputModule],
   template: `
     <form [formGroup]="form" (ngSubmit)="save()">
       <p class="intro">These details appear on every quotation and invoice. Changes apply to documents immediately, including ones already issued.</p>
 
       <div class="grid">
         <mat-form-field appearance="outline" class="full"><mat-label>Studio / company name</mat-label><input matInput formControlName="studioName" />
-          @if (form.controls.studioName.invalid) { <mat-error>Required</mat-error> }</mat-form-field>
-        <mat-form-field appearance="outline" class="full"><mat-label>Tagline</mat-label><input matInput formControlName="tagline" /></mat-form-field>
-        <mat-form-field appearance="outline" class="full"><mat-label>Address</mat-label><textarea matInput rows="2" formControlName="addressLine"></textarea></mat-form-field>
-        <mat-form-field appearance="outline"><mat-label>Phone</mat-label><input matInput type="tel" formControlName="phone" /></mat-form-field>
+<mat-error auto></mat-error></mat-form-field>
+        <mat-form-field appearance="outline" class="full"><mat-label>Tagline</mat-label><input matInput formControlName="tagline" /><mat-error auto></mat-error></mat-form-field>
+        <mat-form-field appearance="outline" class="full"><mat-label>Address</mat-label><textarea matInput rows="2" formControlName="addressLine"></textarea><mat-error auto></mat-error></mat-form-field>
+        <mat-form-field appearance="outline"><mat-label>Phone</mat-label><input matInput type="tel" appInputType="phone" formControlName="phone" /><mat-error auto></mat-error></mat-form-field>
         <mat-form-field appearance="outline"><mat-label>Email</mat-label><input matInput type="email" formControlName="email" />
-          @if (form.controls.email.invalid) { <mat-error>Enter a valid email</mat-error> }</mat-form-field>
-        <mat-form-field appearance="outline"><mat-label>GST / VAT number</mat-label><input matInput formControlName="taxRegistrationNo" /></mat-form-field>
-        <mat-form-field appearance="outline"><mat-label>Default tax %</mat-label><input matInput type="number" inputmode="decimal" formControlName="defaultTaxPercent" /></mat-form-field>
-        <mat-form-field appearance="outline"><mat-label>Invoice prefix</mat-label><input matInput formControlName="invoicePrefix" maxlength="10" />
+<mat-error auto></mat-error></mat-form-field>
+        <mat-form-field appearance="outline"><mat-label>GST / VAT number</mat-label><input matInput formControlName="taxRegistrationNo" appInputType="code" /><mat-error auto></mat-error></mat-form-field>
+        <mat-form-field appearance="outline"><mat-label>Default tax %</mat-label><input matInput type="number" inputmode="decimal" formControlName="defaultTaxPercent" /><mat-error auto></mat-error></mat-form-field>
+        <mat-form-field appearance="outline"><mat-label>Invoice prefix</mat-label><input matInput formControlName="invoicePrefix" appInputType="alphanumeric" maxlength="10" />
           <mat-hint>e.g. INV → INV-2026-001</mat-hint>
-          @if (form.controls.invoicePrefix.invalid) { <mat-error>2-10 letters</mat-error> }</mat-form-field>
-        <mat-form-field appearance="outline"><mat-label>Quotation prefix</mat-label><input matInput formControlName="quotationPrefix" maxlength="10" />
+<mat-error auto></mat-error></mat-form-field>
+        <mat-form-field appearance="outline"><mat-label>Quotation prefix</mat-label><input matInput formControlName="quotationPrefix" appInputType="alphanumeric" maxlength="10" />
           <mat-hint>e.g. QTN → QTN-2026-001</mat-hint>
-          @if (form.controls.quotationPrefix.invalid) { <mat-error>2-10 letters</mat-error> }</mat-form-field>
-        <mat-form-field appearance="outline" class="full"><mat-label>Logo URL (optional)</mat-label><input matInput type="url" formControlName="logoUrl" placeholder="https://" /></mat-form-field>
-        <mat-form-field appearance="outline" class="full"><mat-label>Bank / UPI payment details</mat-label><textarea matInput rows="3" formControlName="bankDetails"></textarea></mat-form-field>
+<mat-error auto></mat-error></mat-form-field>
+        <mat-form-field appearance="outline" class="full"><mat-label>Logo URL (optional)</mat-label><input matInput type="url" formControlName="logoUrl" placeholder="https://" /><mat-error auto></mat-error></mat-form-field>
+        <mat-form-field appearance="outline" class="full"><mat-label>Bank / UPI payment details</mat-label><textarea matInput rows="3" formControlName="bankDetails"></textarea><mat-error auto></mat-error></mat-form-field>
         <mat-form-field appearance="outline" class="full"><mat-label>Default terms &amp; conditions</mat-label><textarea matInput rows="6" formControlName="defaultTerms"></textarea>
-          <mat-hint>Copied into each new quotation / invoice (editable per document).</mat-hint></mat-form-field>
+          <mat-hint>Copied into each new quotation / invoice (editable per document).</mat-hint><mat-error auto></mat-error></mat-form-field>
       </div>
 
       <div class="actions"><button mat-flat-button type="submit" [disabled]="form.invalid || saving()">Save studio details</button></div>
@@ -54,18 +56,18 @@ export class StudioSettingsForm {
   protected readonly saving = signal(false);
 
   protected readonly form = inject(NonNullableFormBuilder).group({
-    studioName: ['', Validators.required],
-    tagline: [''],
-    addressLine: [''],
-    phone: [''],
-    email: ['', Validators.email],
-    taxRegistrationNo: [''],
-    defaultTaxPercent: [0, [Validators.min(0), Validators.max(100)]],
+    studioName: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(150)]],
+    tagline: ['', Validators.maxLength(200)],
+    addressLine: ['', Validators.maxLength(300)],
+    phone: ['', [phone, Validators.maxLength(30)]],
+    email: ['', [email, Validators.maxLength(150)]],
+    taxRegistrationNo: ['', taxRegistration],
+    defaultTaxPercent: [0, [Validators.required, percent]],
     invoicePrefix: ['INV', Validators.pattern(/^[A-Za-z]{2,10}$/)],
     quotationPrefix: ['QTN', Validators.pattern(/^[A-Za-z]{2,10}$/)],
-    logoUrl: [''],
-    bankDetails: [''],
-    defaultTerms: [''],
+    logoUrl: ['', [httpUrl, Validators.maxLength(300)]],
+    bankDetails: ['', Validators.maxLength(500)],
+    defaultTerms: ['', Validators.maxLength(4000)],
   });
 
   constructor() {

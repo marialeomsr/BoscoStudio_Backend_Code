@@ -105,6 +105,7 @@ public partial class PhotoStudioDbContext : DbContext
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
             entity.Property(e => e.OrderStatus).HasDefaultValue("Pre-Order");
             entity.Property(e => e.TaxAmount).HasComputedColumnSql("(CONVERT([decimal](12,2),round((([PackageAmount]-[DiscountAmount])*[TaxPercent])/(100.0),(2))))", true);
+            entity.Property(e => e.TaxSplit).HasDefaultValue("Single");
             entity.Property(e => e.TotalAmount).HasComputedColumnSql("(CONVERT([decimal](12,2),([PackageAmount]-[DiscountAmount])+round((([PackageAmount]-[DiscountAmount])*[TaxPercent])/(100.0),(2))))", true);
 
             entity.HasOne(d => d.Client).WithMany(p => p.Orders)
@@ -128,6 +129,7 @@ public partial class PhotoStudioDbContext : DbContext
         modelBuilder.Entity<OwnerAccount>(entity =>
         {
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
+            entity.Property(e => e.Role).HasDefaultValue("Admin");
         });
 
         modelBuilder.Entity<Package>(entity =>

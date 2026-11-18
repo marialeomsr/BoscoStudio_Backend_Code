@@ -51,6 +51,19 @@ public class UpdateDocumentRequest
     public DateOnly? DueDate { get; set; }
     public string? Notes { get; set; }
     public string? Terms { get; set; }
+    /// <summary>
+    /// Null = keep the current items. When given, they replace the items and their total becomes the order's package amount
+    /// (the order stays the single source of truth for price, discount, tax and balance).
+    /// </summary>
+    public List<DocumentLineRequest>? Lines { get; set; }
+    /// <summary>Null = keep. Written through to the order (see <see cref="Lines"/>).</summary>
+    public decimal? DiscountAmount { get; set; }
+    /// <summary>Tax % (e.g. GST 18). Null = keep. Written through to the order.</summary>
+    public decimal? TaxPercent { get; set; }
+    /// <summary>"Single" or "CGST+SGST". Null = keep. Display only: the total never changes.</summary>
+    public string? TaxSplit { get; set; }
+    /// <summary>CGST rate when TaxSplit is CGST+SGST (SGST = TaxPercent - CgstPercent). Null = equal halves.</summary>
+    public decimal? CgstPercent { get; set; }
 }
 
 public record OrderDocumentRefDto(int DocumentId, string DocumentType, string DocumentNumber);

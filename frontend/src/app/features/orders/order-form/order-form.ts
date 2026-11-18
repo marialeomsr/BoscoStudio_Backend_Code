@@ -19,6 +19,9 @@ import { describeError } from '../../../shared/api-error';
 import { ConfirmDialog } from '../../../shared/components/confirm-dialog';
 import { today } from '../../../shared/date-utils';
 import { InrPipe } from '../../../shared/pipes/inr.pipe';
+import { InputFilter } from '../../../shared/input-filter';
+import { ratesFromLines, totalTaxPercent } from '../../../shared/tax';
+import { AutoError, email, money, notMoreThan, percent, personName, phone, requiredPhone, sensibleDate } from '../../../shared/validators';
 
 type SlotGroup = FormGroup<{
   eventDate: FormControl<string>;
@@ -30,7 +33,7 @@ type SlotGroup = FormGroup<{
 /** Create (orders/new?date=yyyy-MM-dd) and edit (orders/:id/edit) in one form. */
 @Component({
   selector: 'app-order-form',
-  imports: [ReactiveFormsModule, RouterLink, InrPipe, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule],
+  imports: [ReactiveFormsModule, RouterLink, InrPipe, InputFilter, AutoError, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule],
   templateUrl: './order-form.html',
   styleUrl: './order-form.scss',
 })
@@ -55,16 +58,20 @@ export class OrderForm {
   protected readonly form = this.fb.group({
     clientId: this.fb.control<number | null>(null),
     newClient: this.fb.group({
-      fullName: [''], phone: [''], whatsAppNo: [''], email: ['', Validators.email],
+      fullName: ['', [personName, Validators.maxLength(120)]], phone: ['', [phone, Validators.maxLength(30)]],
+      whatsAppNo: ['', [phone, Validators.maxLength(30)]], email: ['', [email, Validators.maxLength(150)]],
     }),
     initialStatus: this.fb.control<'Pre-Order' | 'Pending' | 'Confirmed'>('Pre-Order'),
     eventType: this.fb.control('', Validators.required),
     packageId: this.fb.control<number | null>(null),
-    venue: this.fb.control(''),
-    notes: this.fb.control(''),
-    packageAmount: this.fb.control<number | null>(null, [Validators.required, Validators.min(0)]),
-    discountAmount: this.fb.control(0, Validators.min(0)),
-    taxPercent: this.fb.control<number | null>(0, [Validators.min(0), Validators.max(100)]),
+    venue: this.fb.control('', Validators.maxLength(300)),
+    notes: this.fb.control('', Validators.maxLength(1000)),
+    packageAmount: this.fb.control<number | null>(null, [Validators.required, money]),
+    discountAmount: this.fb.control(0, [money, notMoreThan('packageAmount', 'package amount')]),
+    taxPercent: this.fb.control<number | null>(0, percent),
+    taxSplit: this.fb.control<'Single' | 'CGST+SGST'>('Single'),
+    cgstPercent: this.fb.control<number | null>(0, percent),
+    sgstPercent: this.fb.control<number | null>(0, percent),
     slots: this.fb.array<SlotGroup>([]),
   });
 
@@ -82,9 +89,22 @@ export class OrderForm {
     this.formValue();
     const v = this.form.getRawValue();
     const net = Math.max(0, (v.packageAmount ?? 0) - v.discountAmount);
-    const tax = Math.round(net * (v.taxPercent ?? 0)) / 100;
-    return { net, tax, total: net + tax };
+    const tax = Math.round(net * totalTaxPercent(v)) / 100;
+    const cgst = Math.round(net * (v.cgstPercent ?? 0)) / 100;
+    return { net, tax, cgst, total: net + tax };
   });
+
+  /** Switching the display: start the two rates from the current one (half each), or add them back into one rate. */
+  protected onTaxSplitChange(): void {
+    const c = this.form.controls;
+    if (c.taxSplit.value === 'CGST+SGST') {
+      const half = Math.round((c.taxPercent.value ?? 0) * 50) / 100;
+      c.cgstPercent.setValue(half);
+      c.sgstPercent.setValue(half);
+    } else {
+      c.taxPercent.setValue((c.cgstPercent.value ?? 0) + (c.sgstPercent.value ?? 0));
+    }
+  }
 
   get slots(): FormArray<SlotGroup> { return this.form.controls.slots; }
 
@@ -115,10 +135,10 @@ export class OrderForm {
 
   protected addSlot(date?: string, start = '09:00', end = '13:00', title = ''): void {
     this.slots.push(this.fb.group({
-      eventDate: this.fb.control(date || today(), Validators.required),
+      eventDate: this.fb.control(date || today(), [Validators.required, sensibleDate]),
       startTime: this.fb.control(start, Validators.required),
       endTime: this.fb.control(end, Validators.required),
-      title: this.fb.control(title),
+      title: this.fb.control(title, Validators.maxLength(100)),
     }));
   }
 
@@ -143,8 +163,9 @@ export class OrderForm {
     this.newClientMode.update((v) => !v);
     const nc = this.form.controls.newClient.controls;
     const on = this.newClientMode();
-    nc.fullName.setValidators(on ? Validators.required : null);
-    nc.phone.setValidators(on ? Validators.required : null);
+    // required only while adding a new client; the format rules always apply once something is typed
+    nc.fullName.setValidators(on ? [Validators.required, personName, Validators.maxLength(120)] : [personName, Validators.maxLength(120)]);
+    nc.phone.setValidators(on ? [...requiredPhone] : [phone, Validators.maxLength(30)]);
     nc.fullName.updateValueAndValidity();
     nc.phone.updateValueAndValidity();
     this.form.controls.clientId.setValidators(on ? null : Validators.required);
@@ -154,7 +175,8 @@ export class OrderForm {
   private fillFrom(o: OrderDetail): void {
     this.form.patchValue({
       clientId: o.client.clientId, eventType: o.eventType, packageId: o.packageId, venue: o.venue ?? '', notes: o.notes ?? '',
-      packageAmount: o.packageAmount, discountAmount: o.discountAmount, taxPercent: o.taxPercent,
+      packageAmount: o.packageAmount, discountAmount: o.discountAmount, taxPercent: o.taxPercent, taxSplit: o.taxSplit,
+      ...ratesFromLines(o.taxLines, o.taxPercent),
     });
     if (!this.eventTypes().some((t) => t.eventTypeName === o.eventType))   // inactive type already used by this order
       this.eventTypes.update((list) => [...list, { eventTypeId: 0, eventTypeName: o.eventType, sortOrder: 99, isActive: false, orderCount: 0, packageCount: 0 }]);
@@ -178,7 +200,8 @@ export class OrderForm {
     }));
     const base: UpdateOrderRequest = {
       packageId: v.packageId, eventType: v.eventType, venue: v.venue || null, notes: v.notes || null,
-      packageAmount: v.packageAmount, discountAmount: v.discountAmount, taxPercent: v.taxPercent, slots, allowOverlap,
+      packageAmount: v.packageAmount, discountAmount: v.discountAmount, taxPercent: totalTaxPercent(v), taxSplit: v.taxSplit,
+      cgstPercent: v.taxSplit === 'CGST+SGST' ? v.cgstPercent : null, slots, allowOverlap,
     };
 
     let call: Observable<OrderDetail>;

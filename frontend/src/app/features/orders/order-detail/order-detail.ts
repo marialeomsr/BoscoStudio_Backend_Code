@@ -1,4 +1,4 @@
-﻿import { DatePipe } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { Component, computed, inject, input, numberAttribute, signal } from '@angular/core';
 import { FormControl, FormGroup, NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -11,6 +11,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router, RouterLink } from '@angular/router';
 import { Observable } from 'rxjs';
 import { StudioApi } from '../../../core/api/studio-api';
+import { AuthService } from '../../../core/auth/auth.service';
 import {
   ALBUM_STAGES, Album, CreateAlbumRequest, CreateExpenseRequest, CreatePaymentRequest, EXPENSE_CATEGORIES,
   DocumentType, ExpenseCategory, OrderDetail, PAYMENT_MODES, PAYMENT_TYPES, PaymentMode, PaymentType, UpdateDeliverableRequest, WORK_STATUSES,
@@ -21,6 +22,7 @@ import { ConfirmDialog } from '../../../shared/components/confirm-dialog';
 import { StatusBadge } from '../../../shared/components/status-badge';
 import { today } from '../../../shared/date-utils';
 import { InrPipe } from '../../../shared/pipes/inr.pipe';
+import { AutoError, httpUrl, intRange, money, notFuture, phoneOrEmail, positiveMoney, transactionRef } from '../../../shared/validators';
 
 // Strongly typed form shapes (one per form, kept next to the component that owns them).
 type PaymentForm = FormGroup<{
@@ -63,13 +65,14 @@ type AlbumForm = FormGroup<{
 @Component({
   selector: 'app-order-detail',
   imports: [
-    ReactiveFormsModule, RouterLink, DatePipe, InrPipe, StatusBadge,
+    ReactiveFormsModule, RouterLink, AutoError, DatePipe, InrPipe, StatusBadge,
     MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule,
   ],
   templateUrl: './order-detail.html',
   styleUrl: './order-detail.scss',
 })
 export class OrderDetailPage {
+  protected readonly auth = inject(AuthService);
   private readonly api = inject(StudioApi);
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly dialog = inject(MatDialog);
@@ -111,21 +114,21 @@ export class OrderDetailPage {
   protected readonly paymentForm: PaymentForm = this.fb.group({
     paymentType: this.fb.control<PaymentType>('Booking Advance'),
     paymentMode: this.fb.control<PaymentMode>('UPI'),
-    amount: this.fb.control<number | null>(null, [Validators.required, Validators.min(0.01)]),
-    paymentDate: this.fb.control(today()),
-    transactionRef: this.fb.control(''),
+    amount: this.fb.control<number | null>(null, [Validators.required, positiveMoney]),
+    paymentDate: this.fb.control(today(), notFuture),
+    transactionRef: this.fb.control('', [transactionRef, Validators.maxLength(100)]),
   });
   protected readonly expenseForm: ExpenseForm = this.fb.group({
     category: this.fb.control<ExpenseCategory>('Second Shooter'),
-    description: this.fb.control(''),
-    amount: this.fb.control<number | null>(null, [Validators.required, Validators.min(0.01)]),
+    description: this.fb.control('', Validators.maxLength(300)),
+    amount: this.fb.control<number | null>(null, [Validators.required, positiveMoney]),
   });
   protected readonly albumForm: AlbumForm = this.fb.group({
-    albumType: this.fb.control('', Validators.required),
-    sheetCount: this.fb.control<number | null>(30, [Validators.required, Validators.min(1)]),
-    printVendorName: this.fb.control(''),
-    printVendorContact: this.fb.control(''),
-    printCost: this.fb.control<number | null>(null),
+    albumType: this.fb.control('', [Validators.required, Validators.maxLength(60)]),
+    sheetCount: this.fb.control<number | null>(30, [Validators.required, intRange(1, 500)]),
+    printVendorName: this.fb.control('', Validators.maxLength(120)),
+    printVendorContact: this.fb.control('', [phoneOrEmail, Validators.maxLength(60)]),
+    printCost: this.fb.control<number | null>(null, money),
   });
 
   protected readonly deliverableForm: DeliverableForm = this.fb.group({
@@ -136,8 +139,8 @@ export class OrderDetailPage {
     teaserEditStatus: this.fb.control('Not Started'),
     fullFilmEditStatus: this.fb.control('Not Started'),
     cloudProvider: this.fb.control(''),
-    cloudLink: this.fb.control(''),
-    deliveredOn: this.fb.control(''),
+    cloudLink: this.fb.control('', [httpUrl, Validators.maxLength(500)]),
+    deliveredOn: this.fb.control('', notFuture),
   });
 
   ngOnInit(): void {
@@ -257,7 +260,7 @@ export class OrderDetailPage {
   /** Orders with money recorded (payments / invoice) can only be cancelled, never deleted. */
   protected readonly canDelete = computed(() => {
     const o = this.order();
-    return !!o && o.payments.length === 0 && !o.documents.some((d) => d.documentType === 'Invoice');
+    return this.auth.can('orders.delete') && !!o && o.payments.length === 0 && !o.documents.some((d) => d.documentType === 'Invoice');
   });
 
   protected deleteOrder(): void {

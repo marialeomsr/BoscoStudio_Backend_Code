@@ -57,6 +57,13 @@ public partial class Order
     [Precision(0)]
     public DateTime? UpdatedAt { get; set; }
 
+    [StringLength(12)]
+    public string TaxSplit { get; set; } = null!;
+
+    /// <summary>CGST rate when the tax is split (SGST = TaxPercent - CgstPercent). Null = equal halves.</summary>
+    [Column(TypeName = "decimal(5, 2)")]
+    public decimal? CgstPercent { get; set; }
+
     [InverseProperty("Order")]
     public virtual ICollection<Album> Albums { get; set; } = new List<Album>();
 

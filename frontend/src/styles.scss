@@ -36,7 +36,58 @@ body {
   margin: 0;
   height: 100%;
 }
-/* You can add global styles to this file, and also import other style files */
+/* ==========================================================================
+   Shared page design - the same look as Home, used by every screen.
+   Usage: put an accent class (blue / amber / purple / green / red / teal / slate) on a
+   .page-head, .panel, .tiles or .tile; everything inside derives its colours from --accent.
+   ========================================================================== */
+.blue { --accent: #1976d2; } .amber { --accent: #f57c00; } .purple { --accent: #8e24aa; } .green { --accent: #2e7d32; }
+.red { --accent: #c62828; } .teal { --accent: #00897b; } .slate { --accent: #546e7a; }
+
+/* Page header: coloured icon block + title + actions on the right */
+.page-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 14px; }
+.page-head .ico { width: 42px; height: 42px; flex: none; border-radius: 12px; display: grid; place-items: center; color: #fff; background: var(--accent); }
+.page-head h1 { margin: 0; font-size: 22px; font-weight: 500; color: color-mix(in srgb, var(--accent) 80%, black); }
+.page-head .sub { display: block; font-size: 13px; font-weight: 400; color: var(--mat-sys-on-surface-variant); }
+.page-head .actions { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+/* Bordered, lightly tinted card with a coloured top edge */
+.panel {
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent); border-top: 4px solid var(--accent);
+  border-radius: 14px; padding: 4px 16px 12px; background: color-mix(in srgb, var(--accent) 3%, white);
+}
+.panel > h2, .panel > .panel-title, .panel > .section-head > h2 {
+  display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 500; color: color-mix(in srgb, var(--accent) 80%, black);
+}
+.panel > h2, .panel > .panel-title { margin: 12px 0 8px; }
+.panel.slim { border-top-width: 1px; padding: 12px 16px 4px; }   /* filter bars */
+.stack > * + * { margin-top: 16px; }
+
+/* Tables inside panels: tinted header, accent hover */
+.dtable { width: 100%; border-collapse: collapse; }
+.dtable thead th { background: color-mix(in srgb, var(--accent) 9%, white); color: color-mix(in srgb, var(--accent) 75%, black); font-weight: 500; }
+@media (min-width: 720px) {
+  .dtable th, .dtable td { border-bottom: 1px solid color-mix(in srgb, var(--accent) 15%, transparent) !important; }
+  .dtable tbody tr:last-child td { border-bottom: 0 !important; }
+}
+.dtable tbody tr:hover { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+@media (max-width: 719px) {
+  .dtable tbody tr { background: color-mix(in srgb, var(--accent) 3%, white); border-color: color-mix(in srgb, var(--accent) 25%, transparent) !important; }
+}
+
+/* Count tiles (also used as filters): wrap onto rows, never scroll sideways */
+.tiles { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); margin-bottom: 16px; }
+.tile {
+  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 2px; padding: 10px 6px; cursor: pointer; font: inherit; color: inherit;
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent); border-radius: 12px; background: color-mix(in srgb, var(--accent) 6%, white);
+  transition: box-shadow .15s, transform .15s;
+}
+.tile strong { font-size: 22px; line-height: 1.2; color: color-mix(in srgb, var(--accent) 80%, black); }
+.tile small { font-size: 11px; color: var(--mat-sys-on-surface-variant); }
+.tile:hover { box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 25%, transparent); transform: translateY(-1px); }
+.tile.on { background: var(--accent); border-color: var(--accent); }
+.tile.on strong, .tile.on small { color: #fff; }
+.tile.zero:not(.on) { opacity: .6; }
 
 /* ---- Print / PDF: show only the document, hide app chrome ---- */
 @media print {

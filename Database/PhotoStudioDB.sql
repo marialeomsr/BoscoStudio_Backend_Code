@@ -22,6 +22,10 @@ CREATE TABLE dbo.OwnerAccounts (
     PasswordHash   NVARCHAR(200) NOT NULL,                 -- BCrypt hash, never plain text
     FullName       NVARCHAR(100) NOT NULL,
     Email          NVARCHAR(150) NULL,
+    Role           NVARCHAR(10)  NOT NULL CONSTRAINT DF_OwnerAccounts_Role DEFAULT N'Admin'
+                       CONSTRAINT CK_OwnerAccounts_Role CHECK (Role IN (N'Admin', N'Manager', N'Staff')),
+    -- Comma-separated permissions (orders.edit, orders.delete, ...). NULL = the role's preset. Admins always have everything.
+    Permissions    NVARCHAR(500) NULL,
     CreatedAt      DATETIME2(0)  NOT NULL CONSTRAINT DF_OwnerAccounts_CreatedAt DEFAULT SYSUTCDATETIME()
 );
 GO
@@ -114,6 +118,11 @@ CREATE TABLE dbo.Orders (
     PackageAmount  DECIMAL(12,2) NOT NULL CONSTRAINT DF_Orders_PkgAmt  DEFAULT 0 CONSTRAINT CK_Orders_PkgAmt  CHECK (PackageAmount >= 0),
     DiscountAmount DECIMAL(12,2) NOT NULL CONSTRAINT DF_Orders_Disc    DEFAULT 0 CONSTRAINT CK_Orders_Disc    CHECK (DiscountAmount >= 0),
     TaxPercent     DECIMAL(5,2)  NOT NULL CONSTRAINT DF_Orders_TaxPct  DEFAULT 0 CONSTRAINT CK_Orders_TaxPct  CHECK (TaxPercent BETWEEN 0 AND 100),
+    -- How the tax is shown on documents: one line, or split into CGST + SGST. The total never changes.
+    -- TaxPercent is always the TOTAL rate; with a split, CgstPercent is the CGST part and SGST is the rest (NULL = equal halves).
+    TaxSplit       NVARCHAR(12)  NOT NULL CONSTRAINT DF_Orders_TaxSplit DEFAULT N'Single'
+                       CONSTRAINT CK_Orders_TaxSplit CHECK (TaxSplit IN (N'Single', N'CGST+SGST')),
+    CgstPercent    DECIMAL(5,2)  NULL CONSTRAINT CK_Orders_CgstPct CHECK (CgstPercent IS NULL OR (CgstPercent >= 0 AND CgstPercent <= TaxPercent)),
     TaxAmount      AS CAST(ROUND((PackageAmount - DiscountAmount) * TaxPercent / 100.0, 2) AS DECIMAL(12,2)) PERSISTED,
     TotalAmount    AS CAST((PackageAmount - DiscountAmount)
                           + ROUND((PackageAmount - DiscountAmount) * TaxPercent / 100.0, 2) AS DECIMAL(12,2)) PERSISTED,

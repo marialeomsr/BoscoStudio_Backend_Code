@@ -1,3 +1,4 @@
+using BoscoStudio.Application.Common;
 using BoscoStudio.Application.Dtos;
 using BoscoStudio.Application.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -15,10 +16,12 @@ public class PaymentsController(IPaymentService payments) : ControllerBase
     public Task<List<PaymentDto>> ListPayments(int orderId, CancellationToken ct) =>
         payments.GetPaymentsAsync(orderId, ct);
 
+    [RequirePermission(AppPermissions.PaymentsRecord)]
     [HttpPost("payments")]
     public async Task<ActionResult<PaymentDto>> AddPayment(int orderId, CreatePaymentRequest request, CancellationToken ct) =>
         StatusCode(StatusCodes.Status201Created, await payments.AddPaymentAsync(orderId, request, ct));
 
+    [RequirePermission(AppPermissions.PaymentsDelete)]
     [HttpDelete("payments/{paymentId:int}")]
     public async Task<IActionResult> DeletePayment(int orderId, int paymentId, CancellationToken ct)
     {
@@ -26,10 +29,12 @@ public class PaymentsController(IPaymentService payments) : ControllerBase
         return NoContent();
     }
 
+    [RequirePermission(AppPermissions.PaymentsRecord)]
     [HttpPost("expenses")]
     public async Task<ActionResult<ExpenseDto>> AddExpense(int orderId, CreateExpenseRequest request, CancellationToken ct) =>
         StatusCode(StatusCodes.Status201Created, await payments.AddExpenseAsync(orderId, request, ct));
 
+    [RequirePermission(AppPermissions.PaymentsDelete)]
     [HttpDelete("expenses/{expenseId:int}")]
     public async Task<IActionResult> DeleteExpense(int orderId, int expenseId, CancellationToken ct)
     {

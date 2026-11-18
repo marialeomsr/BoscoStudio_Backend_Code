@@ -11,10 +11,6 @@ namespace BoscoStudio.Api.Controllers;
 [Route("api")]
 public class LookupsController(ILookupService lookups) : ControllerBase
 {
-    [HttpGet("clients")]
-    public Task<List<ClientDto>> Clients([FromQuery] string? search, CancellationToken ct) =>
-        lookups.SearchClientsAsync(search, ct);
-
     [HttpGet("settings/default-tax")]
     public Task<decimal> DefaultTax(CancellationToken ct) => lookups.GetDefaultTaxPercentAsync(ct);
 

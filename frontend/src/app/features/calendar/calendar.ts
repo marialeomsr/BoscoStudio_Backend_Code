@@ -2,13 +2,13 @@ import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
 import { switchMap } from 'rxjs';
 import { StudioApi } from '../../core/api/studio-api';
 import { CalendarItem } from '../../core/models/studio.models';
 import { addDays, parseIsoDate, startOfWeek, toIsoDate } from '../../shared/date-utils';
+import { statusColor } from '../../shared/status-colors';
 
 type View = 'month' | 'week' | 'day';
 interface Cell { iso: string; date: Date; inMonth: boolean; isToday: boolean; items: CalendarItem[]; }
@@ -16,7 +16,7 @@ interface Cell { iso: string; date: Date; inMonth: boolean; isToday: boolean; it
 /** Month / Week / Day agenda fed by GET /api/orders/calendar. Month grid on desktop collapses to a compact grid + day agenda on phones. */
 @Component({
   selector: 'app-calendar',
-  imports: [DatePipe, NgTemplateOutlet, RouterLink, MatButtonModule, MatButtonToggleModule, MatIconModule],
+  imports: [DatePipe, NgTemplateOutlet, RouterLink, MatButtonModule, MatIconModule],
   templateUrl: './calendar.html',
   styleUrl: './calendar.scss',
 })
@@ -26,6 +26,7 @@ export class Calendar {
   protected readonly view = signal<View>('month');
   protected readonly cursor = signal(new Date());
   protected readonly selectedIso = signal(toIsoDate(new Date()));
+  protected readonly color = statusColor;
   protected readonly weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   /** Visible range, including the leading/trailing days shown in the month grid. */

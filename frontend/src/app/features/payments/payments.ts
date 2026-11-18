@@ -3,6 +3,7 @@ import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { RouterLink } from '@angular/router';
@@ -15,10 +16,13 @@ import { InrPipe } from '../../shared/pipes/inr.pipe';
 /** Every payment received, newest first, with totals. Defaults to the current month. */
 @Component({
   selector: 'app-payments',
-  imports: [ReactiveFormsModule, DatePipe, RouterLink, InrPipe, MatFormFieldModule, MatInputModule, MatSelectModule],
+  imports: [ReactiveFormsModule, DatePipe, RouterLink, InrPipe, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule],
   template: `
-    <h1>Payments</h1>
-    <div class="filters">
+    <header class="page-head green">
+      <span class="ico"><mat-icon>payments</mat-icon></span>
+      <h1>Payments <span class="sub">money received</span></h1>
+    </header>
+    <div class="panel slim green filters">
       <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>From</mat-label><input matInput type="date" [formControl]="from" /></mat-form-field>
       <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>To</mat-label><input matInput type="date" [formControl]="to" /></mat-form-field>
       <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Mode</mat-label>
@@ -27,12 +31,13 @@ import { InrPipe } from '../../shared/pipes/inr.pipe';
     </div>
 
     <div class="totals">
-      <div><small>Received</small><strong>{{ total() | inr }}</strong></div>
-      <div><small>Payments</small><strong>{{ items().length }}</strong></div>
-      @for (m of byMode(); track m.mode) { <div><small>{{ m.mode }}</small><strong>{{ m.amount | inr }}</strong></div> }
+      <div class="green"><small>Received</small><strong>{{ total() | inr }}</strong></div>
+      <div class="blue"><small>Payments</small><strong>{{ items().length }}</strong></div>
+      @for (m of byMode(); track m.mode) { <div class="purple"><small>{{ m.mode }}</small><strong>{{ m.amount | inr }}</strong></div> }
     </div>
 
-    <table class="grid">
+    <section class="panel green tablewrap">
+    <table class="grid dtable">
       <thead><tr><th>Date</th><th>Client</th><th>Order</th><th>Type</th><th>Mode</th><th>Ref</th><th class="num">Amount</th></tr></thead>
       <tbody>
         @for (p of items(); track p.paymentId) {
@@ -48,13 +53,20 @@ import { InrPipe } from '../../shared/pipes/inr.pipe';
         } @empty { <tr><td colspan="7">No payments in this period.</td></tr> }
       </tbody>
     </table>
+    </section>
   `,
   styles: `
-    h1 { font-size: 22px; margin: 0 0 12px; }
+    :host { display: block; max-width: 1200px; margin: 0 auto; }
     .filters { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; mat-form-field { flex: 1 1 150px; } }
-    .totals { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); margin-bottom: 16px; }
-    .totals div { background: var(--mat-sys-surface-container-low); border: 1px solid var(--mat-sys-outline-variant); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; }
-    .totals strong { font-size: 18px; }
+    .tablewrap { padding: 0 8px 8px; overflow: hidden; }
+    .totals { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); margin-bottom: 16px; }
+    .totals div {
+      display: flex; flex-direction: column; padding: 10px 14px; border-radius: 12px;
+      border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent); border-left: 5px solid var(--accent);
+      background: color-mix(in srgb, var(--accent) 7%, white);
+    }
+    .totals small { color: var(--mat-sys-on-surface-variant); font-size: 12px; }
+    .totals strong { font-size: 20px; color: color-mix(in srgb, var(--accent) 80%, black); }
     .grid { width: 100%; border-collapse: collapse; }
     th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--mat-sys-outline-variant); }
     .num { text-align: right; }

@@ -16,6 +16,9 @@ public record DocumentSummaryDto(
     int DocumentId, string DocumentNumber, string DocumentType, int OrderId, string OrderNumber, string ClientName,
     DateOnly IssueDate, decimal Total, decimal BalanceDue);
 
+/// <summary>One printed tax line: "Tax 18%", or "CGST 9%" + "SGST 9%" when split.</summary>
+public record TaxLineDto(string Label, decimal Percent, decimal Amount);
+
 public record StudioInfoDto(
     string StudioName, string? Tagline, string? AddressLine, string? Phone, string? Email,
     string? TaxRegistrationNo, string? BankDetails, string? LogoUrl);
@@ -30,7 +33,8 @@ public record DocumentDetailDto(
     int OrderId, string OrderNumber, string EventType, DateOnly EventDate, string? Venue,
     IReadOnlyList<DocumentLineDto> Lines,
     decimal Subtotal, decimal DiscountAmount, decimal TaxPercent, decimal TaxAmount, decimal Total,
-    IReadOnlyList<PaymentDto> Payments, decimal TotalPaid, decimal BalanceDue);
+    IReadOnlyList<PaymentDto> Payments, decimal TotalPaid, decimal BalanceDue,
+    string TaxSplit, IReadOnlyList<TaxLineDto> TaxLines);
 
 public class CreateDocumentRequest
 {

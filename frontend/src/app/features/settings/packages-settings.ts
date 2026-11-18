@@ -14,11 +14,12 @@ import { EventTypeInfo, PackageInfo, SavePackageRequest } from '../../core/model
 import { describeError } from '../../shared/api-error';
 import { ConfirmDialog } from '../../shared/components/confirm-dialog';
 import { InrPipe } from '../../shared/pipes/inr.pipe';
+import { AutoError, money } from '../../shared/validators';
 
 /** Packages per event type. The order form lists only the packages of the chosen event type. */
 @Component({
   selector: 'app-packages-settings',
-  imports: [ReactiveFormsModule, InrPipe, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule, MatSlideToggleModule],
+  imports: [ReactiveFormsModule, AutoError, InrPipe, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule, MatSlideToggleModule],
   template: `
     <div class="head">
       <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter">
@@ -38,10 +39,10 @@ import { InrPipe } from '../../shared/pipes/inr.pipe';
             <mat-option value="">Any event</mat-option>
             @for (t of eventTypes(); track t.eventTypeId) { <mat-option [value]="t.eventTypeName">{{ t.eventTypeName }}</mat-option> }
           </mat-select>
-        </mat-form-field>
-        <mat-form-field appearance="outline"><mat-label>Package name</mat-label><input matInput formControlName="packageName" maxlength="120" /></mat-form-field>
-        <mat-form-field appearance="outline"><mat-label>Price</mat-label><input matInput type="number" inputmode="decimal" formControlName="basePrice" /></mat-form-field>
-        <mat-form-field appearance="outline" class="full"><mat-label>What's included</mat-label><textarea matInput rows="2" formControlName="inclusions"></textarea></mat-form-field>
+        <mat-error auto></mat-error></mat-form-field>
+        <mat-form-field appearance="outline"><mat-label>Package name</mat-label><input matInput formControlName="packageName" maxlength="120" /><mat-error auto></mat-error></mat-form-field>
+        <mat-form-field appearance="outline"><mat-label>Price</mat-label><input matInput type="number" inputmode="decimal" formControlName="basePrice" /><mat-error auto></mat-error></mat-form-field>
+        <mat-form-field appearance="outline" class="full"><mat-label>What's included</mat-label><textarea matInput rows="2" formControlName="inclusions"></textarea><mat-error auto></mat-error></mat-form-field>
         <mat-slide-toggle formControlName="isActive">Active (shown in the order form)</mat-slide-toggle>
         <div class="row-actions full">
           <button mat-button type="button" (click)="editingId.set(null)">Cancel</button>
@@ -94,9 +95,9 @@ export class PackagesSettings {
 
   protected readonly form = inject(NonNullableFormBuilder).group({
     eventType: [''],
-    packageName: ['', [Validators.required, Validators.maxLength(120)]],
-    basePrice: [0, [Validators.required, Validators.min(0)]],
-    inclusions: [''],
+    packageName: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(120)]],
+    basePrice: [0, [Validators.required, money]],
+    inclusions: ['', Validators.maxLength(1000)],
     isActive: [true],
   });
 

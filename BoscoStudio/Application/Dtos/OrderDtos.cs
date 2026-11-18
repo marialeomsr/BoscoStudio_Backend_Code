@@ -28,7 +28,8 @@ public record OrderDetailDto(
     DeliverableDto? Deliverable,
     IReadOnlyList<AlbumDto> Albums,
     IReadOnlyList<string> AllowedNextStatuses,
-    IReadOnlyList<OrderDocumentRefDto> Documents);
+    IReadOnlyList<OrderDocumentRefDto> Documents,
+    string TaxSplit, IReadOnlyList<TaxLineDto> TaxLines);
 
 public record DeliverableDto(
     int OrderId, string RawBackupStatus, string SelectionMode, string SelectionStatus, string PhotoEditStatus,
@@ -66,6 +67,10 @@ public class UpdateOrderRequest
     public decimal DiscountAmount { get; set; }
     /// <summary>Null = studio default tax %.</summary>
     public decimal? TaxPercent { get; set; }
+    /// <summary>"Single" (one tax line) or "CGST+SGST" (the tax shown as two equal halves). The total is the same.</summary>
+    public string TaxSplit { get; set; } = "Single";
+    /// <summary>CGST rate when split (SGST = TaxPercent - CgstPercent). Null = equal halves.</summary>
+    public decimal? CgstPercent { get; set; }
     public List<EventSlotRequest> Slots { get; set; } = [];
     /// <summary>Owner confirmed they accept an overlapping slot.</summary>
     public bool AllowOverlap { get; set; }

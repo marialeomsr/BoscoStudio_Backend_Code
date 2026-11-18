@@ -92,6 +92,15 @@ public class OrderService(PhotoStudioDbContext db, DocumentNumberGenerator numbe
         await ApplyEditableFieldsAsync(order, request, ct);
         order.UpdatedAt = DateTime.UtcNow;
 
+        // Quotation / invoice with a single item follow the new price. Documents with several custom items keep
+        // their items (the document view warns when they no longer add up to the order amount).
+        foreach (var d in order.Documents.Where(d => d.DocumentLines.Count == 1))
+        {
+            var line = d.DocumentLines.First();
+            line.Quantity = 1;
+            line.UnitPrice = order.PackageAmount;
+        }
+
         await db.SaveChangesAsync(ct);
         return await GetDetailAsync(orderId, ct);
     }
@@ -164,7 +173,7 @@ public class OrderService(PhotoStudioDbContext db, DocumentNumberGenerator numbe
         await db.Orders
             .Include(o => o.Client).Include(o => o.Package)
             .Include(o => o.OrderEventSlots).Include(o => o.Payments).Include(o => o.Expenses)
-            .Include(o => o.Deliverable).Include(o => o.Albums).Include(o => o.Documents)
+            .Include(o => o.Deliverable).Include(o => o.Albums).Include(o => o.Documents).ThenInclude(d => d.DocumentLines)
             .AsSplitQuery()
             .FirstOrDefaultAsync(o => o.OrderId == orderId, ct)
         ?? throw new NotFoundException("Order", orderId);
@@ -197,6 +206,9 @@ public class OrderService(PhotoStudioDbContext db, DocumentNumberGenerator numbe
         order.PackageAmount = r.PackageAmount ?? package?.BasePrice ?? 0;
         order.DiscountAmount = r.DiscountAmount;
         order.TaxPercent = r.TaxPercent ?? (await db.StudioSettings.FirstOrDefaultAsync(ct))?.DefaultTaxPercent ?? 0;
+        order.TaxSplit = r.TaxSplit;
+        order.CgstPercent = r.TaxSplit == TaxSplits.CgstSgst ? r.CgstPercent : null;
+        if (order.CgstPercent > order.TaxPercent) throw new BusinessRuleException("CGST cannot be more than the total tax %.");
         order.EventDate = r.Slots.Min(s => s.EventDate);
 
         foreach (var s in r.Slots)

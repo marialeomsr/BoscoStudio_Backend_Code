@@ -56,15 +56,27 @@ public class ChangeAlbumStageRequest
 
 public record MonthlyFinanceDto(string Month, decimal Revenue, decimal Expenses);
 
+public record DueBalanceDto(
+    int OrderId, string OrderNumber, string ClientName, string? Phone, string? WhatsAppNo,
+    DateOnly EventDate, string OrderStatus, decimal BalanceDue);
+
+public record AlbumStageCountDto(string Stage, int Count);
+
 public record DashboardDto(
     int UpcomingShootCount,
     IReadOnlyList<OrderSummaryDto> UpcomingShoots,
+    IReadOnlyList<OrderSummaryDto> CompletedShoots,
     decimal PendingClientBalance,
     int OrdersWithBalance,
     int AlbumsAwaitingAction,
     decimal MonthRevenue,
     decimal MonthExpenses,
-    IReadOnlyList<MonthlyFinanceDto> LastSixMonths);
+    IReadOnlyList<MonthlyFinanceDto> LastSixMonths,
+    IReadOnlyList<OrderSummaryDto> OverdueShoots,
+    IReadOnlyList<DueBalanceDto> DueBalances,
+    int DueBalanceCount,
+    decimal DueBalanceTotal,
+    IReadOnlyList<AlbumStageCountDto> AlbumsByStage);
 
 // ---------- Auth ----------
 
@@ -74,4 +86,4 @@ public class LoginRequest
     public string Password { get; set; } = "";
 }
 
-public record LoginResponse(string Token, DateTime ExpiresAtUtc, string FullName);
+public record LoginResponse(string Token, DateTime ExpiresAtUtc, string FullName, string Role, IReadOnlyList<string> Permissions);

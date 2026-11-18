@@ -1,10 +1,8 @@
 @if (order(); as o) {
-  <header class="head">
-    <div>
-      <h1>{{ o.client.fullName }}</h1>
-      <p class="muted">{{ o.orderNumber }} · {{ o.eventType }} · {{ o.eventDate | date: 'EEE, d MMM yyyy' }}</p>
-    </div>
-    <app-status-badge [status]="o.orderStatus" />
+  <header class="page-head blue">
+    <span class="ico"><mat-icon>receipt_long</mat-icon></span>
+    <h1>{{ o.client.fullName }}<span class="sub">{{ o.orderNumber }} · {{ o.eventType }} · {{ o.eventDate | date: 'EEE, d MMM yyyy' }}</span></h1>
+    <div class="actions"><app-status-badge [status]="o.orderStatus" /></div>
   </header>
 
   <div class="chips no-print" role="group" aria-label="Order actions">
@@ -12,12 +10,12 @@
     <!-- One quotation / invoice per order: open the existing one (and edit it there) instead of creating another. -->
     @if (documentOf('Quotation'); as q) {
       <a mat-stroked-button [routerLink]="['/invoices', q.documentId]"><mat-icon>request_quote</mat-icon> Quotation {{ q.documentNumber }}</a>
-    } @else if (o.orderStatus !== 'Cancelled') {
+    } @else if (o.orderStatus !== 'Cancelled' && auth.can('documents.manage')) {
       <button mat-stroked-button [disabled]="busy()" (click)="issueDocument('Quotation')"><mat-icon>request_quote</mat-icon> Create quotation</button>
     }
     @if (documentOf('Invoice'); as inv) {
       <a mat-stroked-button [routerLink]="['/invoices', inv.documentId]"><mat-icon>receipt</mat-icon> Invoice {{ inv.documentNumber }}</a>
-    } @else if (canInvoice()) {
+    } @else if (canInvoice() && auth.can('documents.manage')) {
       <button mat-stroked-button [disabled]="busy()" (click)="issueDocument('Invoice')"><mat-icon>receipt</mat-icon> Create invoice</button>
     }
     @if (canDelete()) {
@@ -37,7 +35,7 @@
   <div class="layout">
     <!-- ===== LEFT: who / when / money ===== -->
     <div class="col">
-      <section class="card">
+      <section class="panel blue">
         <h2>Client &amp; schedule</h2>
         <p>
           <a [href]="'tel:' + o.client.phone"><mat-icon inline>call</mat-icon> {{ o.client.phone }}</a>
@@ -55,12 +53,12 @@
         @if (o.packageName) { <p class="muted">Package: {{ o.packageName }}</p> }
       </section>
 
-      <section class="card">
+      <section class="panel amber">
         <h2>Money</h2>
         <dl class="money">
           <dt>Package</dt><dd>{{ o.packageAmount | inr }}</dd>
           <dt>Discount</dt><dd>− {{ o.discountAmount | inr }}</dd>
-          <dt>Tax ({{ o.taxPercent }}%)</dt><dd>{{ o.taxAmount | inr }}</dd>
+          @for (t of o.taxLines; track t.label) { <dt>{{ t.label }} ({{ t.percent }}%)</dt><dd>{{ t.amount | inr }}</dd> }
           <dt class="strong">Total</dt><dd class="strong">{{ o.totalAmount | inr }}</dd>
           <dt>Paid</dt><dd class="ok">{{ o.totalPaid | inr }}</dd>
           <dt class="strong">Balance due</dt><dd class="strong" [class.due]="o.balanceDue > 0">{{ o.balanceDue | inr }}</dd>
@@ -70,7 +68,7 @@
       </section>
 
       <!-- ===== Payments ===== -->
-      <section class="card">
+      <section class="panel green">
         <div class="section-head">
           <h2>Payments</h2>
           @if (canRecordPayment()) {
@@ -82,20 +80,20 @@
           <form class="form" [formGroup]="paymentForm" (ngSubmit)="savePayment()">
             <mat-form-field appearance="outline"><mat-label>Type</mat-label>
               <mat-select formControlName="paymentType">@for (t of paymentTypes; track t) { <mat-option [value]="t">{{ t }}</mat-option> }</mat-select>
-            </mat-form-field>
+            <mat-error auto></mat-error></mat-form-field>
             <mat-form-field appearance="outline"><mat-label>Mode</mat-label>
               <mat-select formControlName="paymentMode">@for (m of paymentModes; track m) { <mat-option [value]="m">{{ m }}</mat-option> }</mat-select>
-            </mat-form-field>
+            <mat-error auto></mat-error></mat-form-field>
             <mat-form-field appearance="outline"><mat-label>Amount</mat-label>
               <input matInput type="number" inputmode="decimal" formControlName="amount" />
               <button mat-button matSuffix type="button" (click)="fillBalance()">Full balance</button>
-            </mat-form-field>
+            <mat-error auto></mat-error></mat-form-field>
             <mat-form-field appearance="outline"><mat-label>Date</mat-label>
               <input matInput type="date" formControlName="paymentDate" />
-            </mat-form-field>
+            <mat-error auto></mat-error></mat-form-field>
             <mat-form-field appearance="outline" class="wide"><mat-label>Transaction ref (optional)</mat-label>
               <input matInput formControlName="transactionRef" />
-            </mat-form-field>
+            <mat-error auto></mat-error></mat-form-field>
             <div class="actions wide">
               <button mat-button type="button" (click)="showPaymentForm.set(false)">Close</button>
               <button mat-flat-button type="submit" [disabled]="paymentForm.invalid || busy()">Save payment</button>
@@ -114,7 +112,7 @@
                 <td data-label="Mode">{{ p.paymentMode }}</td>
                 <td data-label="Ref">{{ p.transactionRef || '—' }}</td>
                 <td data-label="Amount" class="num">{{ p.amount | inr }}</td>
-                <td class="end"><button mat-icon-button aria-label="Delete payment" (click)="deletePayment(p.paymentId)"><mat-icon>delete</mat-icon></button></td>
+                <td class="end">@if (auth.can('payments.delete')) { <button mat-icon-button aria-label="Delete payment" (click)="deletePayment(p.paymentId)"><mat-icon>delete</mat-icon></button> }</td>
               </tr>
             } @empty { <tr><td colspan="6" class="muted">No payments yet.</td></tr> }
           </tbody>
@@ -125,7 +123,7 @@
     <!-- ===== RIGHT: workflow ===== -->
     <div class="col">
       <!-- ===== Albums ===== -->
-      <section class="card">
+      <section class="panel purple">
         <div class="section-head">
           <h2>Albums</h2>
           @if (o.orderStatus !== 'Cancelled') {
@@ -137,19 +135,19 @@
           <form class="form" [formGroup]="albumForm" (ngSubmit)="saveAlbum()">
             <mat-form-field appearance="outline" class="wide"><mat-label>Album type</mat-label>
               <input matInput formControlName="albumType" placeholder="Premium flush mount 12x36" />
-            </mat-form-field>
+            <mat-error auto></mat-error></mat-form-field>
             <mat-form-field appearance="outline"><mat-label>Sheets</mat-label>
               <input matInput type="number" inputmode="numeric" formControlName="sheetCount" />
-            </mat-form-field>
+            <mat-error auto></mat-error></mat-form-field>
             <mat-form-field appearance="outline"><mat-label>Print cost</mat-label>
               <input matInput type="number" inputmode="decimal" formControlName="printCost" />
-            </mat-form-field>
+            <mat-error auto></mat-error></mat-form-field>
             <mat-form-field appearance="outline"><mat-label>Print vendor</mat-label>
               <input matInput formControlName="printVendorName" />
-            </mat-form-field>
+            <mat-error auto></mat-error></mat-form-field>
             <mat-form-field appearance="outline"><mat-label>Vendor contact</mat-label>
               <input matInput formControlName="printVendorContact" />
-            </mat-form-field>
+            <mat-error auto></mat-error></mat-form-field>
             <div class="actions wide">
               <button mat-button type="button" (click)="showAlbumForm.set(false)">Close</button>
               <button mat-flat-button type="submit" [disabled]="albumForm.invalid || busy()">Add album</button>
@@ -189,7 +187,7 @@
       </section>
 
       <!-- ===== Expenses ===== -->
-      <section class="card">
+      <section class="panel red">
         <div class="section-head">
           <h2>Expenses</h2>
           <button mat-stroked-button (click)="showExpenseForm.set(!showExpenseForm())"><mat-icon>add</mat-icon> Expense</button>
@@ -199,13 +197,13 @@
           <form class="form" [formGroup]="expenseForm" (ngSubmit)="saveExpense()">
             <mat-form-field appearance="outline"><mat-label>Category</mat-label>
               <mat-select formControlName="category">@for (c of expenseCategories; track c) { <mat-option [value]="c">{{ c }}</mat-option> }</mat-select>
-            </mat-form-field>
+            <mat-error auto></mat-error></mat-form-field>
             <mat-form-field appearance="outline"><mat-label>Amount</mat-label>
               <input matInput type="number" inputmode="decimal" formControlName="amount" />
-            </mat-form-field>
+            <mat-error auto></mat-error></mat-form-field>
             <mat-form-field appearance="outline" class="wide"><mat-label>Description</mat-label>
               <input matInput formControlName="description" />
-            </mat-form-field>
+            <mat-error auto></mat-error></mat-form-field>
             <div class="actions wide">
               <button mat-button type="button" (click)="showExpenseForm.set(false)">Close</button>
               <button mat-flat-button type="submit" [disabled]="expenseForm.invalid || busy()">Save</button>
@@ -218,7 +216,7 @@
             <li>
               <span>{{ e.category }}@if (e.description) { <small class="muted"> · {{ e.description }}</small> }</span>
               <span>{{ e.amount | inr }}
-                <button mat-icon-button aria-label="Remove expense" (click)="deleteExpense(e.expenseId)"><mat-icon>close</mat-icon></button></span>
+                @if (auth.can('payments.delete')) { <button mat-icon-button aria-label="Remove expense" (click)="deleteExpense(e.expenseId)"><mat-icon>close</mat-icon></button> }</span>
             </li>
           } @empty { <li class="muted">No expenses recorded.</li> }
         </ul>
@@ -226,7 +224,7 @@
 
       <!-- ===== Deliverables ===== -->
       @if (o.orderStatus !== 'Cancelled') {
-        <section class="card">
+        <section class="panel teal">
           <div class="section-head">
             <h2>Deliverables</h2>
             <button mat-stroked-button (click)="showDeliverableForm() ? showDeliverableForm.set(false) : openDeliverableForm()">{{ showDeliverableForm() ? 'Close' : 'Update' }}</button>
@@ -235,21 +233,21 @@
           @if (showDeliverableForm()) {
             <form class="form" [formGroup]="deliverableForm" (ngSubmit)="saveDeliverable()">
               <mat-form-field appearance="outline"><mat-label>Raw backup</mat-label>
-                <mat-select formControlName="rawBackupStatus">@for (s of workStatuses; track s) { <mat-option [value]="s">{{ s }}</mat-option> }</mat-select></mat-form-field>
+                <mat-select formControlName="rawBackupStatus">@for (s of workStatuses; track s) { <mat-option [value]="s">{{ s }}</mat-option> }</mat-select><mat-error auto></mat-error></mat-form-field>
               <mat-form-field appearance="outline"><mat-label>Selection by</mat-label>
-                <mat-select formControlName="selectionMode"><mat-option value="Client Selection">Client</mat-option><mat-option value="Studio Selection">Studio</mat-option></mat-select></mat-form-field>
+                <mat-select formControlName="selectionMode"><mat-option value="Client Selection">Client</mat-option><mat-option value="Studio Selection">Studio</mat-option></mat-select><mat-error auto></mat-error></mat-form-field>
               <mat-form-field appearance="outline"><mat-label>Photo selection</mat-label>
-                <mat-select formControlName="selectionStatus">@for (s of workStatuses; track s) { <mat-option [value]="s">{{ s }}</mat-option> }</mat-select></mat-form-field>
+                <mat-select formControlName="selectionStatus">@for (s of workStatuses; track s) { <mat-option [value]="s">{{ s }}</mat-option> }</mat-select><mat-error auto></mat-error></mat-form-field>
               <mat-form-field appearance="outline"><mat-label>Photo editing</mat-label>
-                <mat-select formControlName="photoEditStatus">@for (s of workStatuses; track s) { <mat-option [value]="s">{{ s }}</mat-option> }</mat-select></mat-form-field>
+                <mat-select formControlName="photoEditStatus">@for (s of workStatuses; track s) { <mat-option [value]="s">{{ s }}</mat-option> }</mat-select><mat-error auto></mat-error></mat-form-field>
               <mat-form-field appearance="outline"><mat-label>Teaser edit</mat-label>
-                <mat-select formControlName="teaserEditStatus">@for (s of workStatuses; track s) { <mat-option [value]="s">{{ s }}</mat-option> }</mat-select></mat-form-field>
+                <mat-select formControlName="teaserEditStatus">@for (s of workStatuses; track s) { <mat-option [value]="s">{{ s }}</mat-option> }</mat-select><mat-error auto></mat-error></mat-form-field>
               <mat-form-field appearance="outline"><mat-label>Full film edit</mat-label>
-                <mat-select formControlName="fullFilmEditStatus">@for (s of workStatuses; track s) { <mat-option [value]="s">{{ s }}</mat-option> }</mat-select></mat-form-field>
+                <mat-select formControlName="fullFilmEditStatus">@for (s of workStatuses; track s) { <mat-option [value]="s">{{ s }}</mat-option> }</mat-select><mat-error auto></mat-error></mat-form-field>
               <mat-form-field appearance="outline"><mat-label>Delivery via</mat-label>
-                <mat-select formControlName="cloudProvider"><mat-option value="">�</mat-option>@for (p of cloudProviders; track p) { <mat-option [value]="p">{{ p }}</mat-option> }</mat-select></mat-form-field>
-              <mat-form-field appearance="outline"><mat-label>Delivered on</mat-label><input matInput type="date" formControlName="deliveredOn" /></mat-form-field>
-              <mat-form-field appearance="outline" class="wide"><mat-label>Delivery link</mat-label><input matInput type="url" formControlName="cloudLink" placeholder="https://" /></mat-form-field>
+                <mat-select formControlName="cloudProvider"><mat-option value="">None</mat-option>@for (p of cloudProviders; track p) { <mat-option [value]="p">{{ p }}</mat-option> }</mat-select><mat-error auto></mat-error></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>Delivered on</mat-label><input matInput type="date" formControlName="deliveredOn" /><mat-error auto></mat-error></mat-form-field>
+              <mat-form-field appearance="outline" class="wide"><mat-label>Delivery link</mat-label><input matInput type="url" formControlName="cloudLink" placeholder="https://" /><mat-error auto></mat-error></mat-form-field>
               <div class="actions wide"><button mat-flat-button type="submit" [disabled]="busy()">Save deliverables</button></div>
             </form>
           } @else if (o.deliverable; as d) {
@@ -262,7 +260,7 @@
             </ul>
             @if (d.cloudLink) { <p><a [href]="d.cloudLink" target="_blank" rel="noopener">Open {{ d.cloudProvider ?? 'delivery' }} link</a></p> }
           } @else {
-            <p class="muted">Checklist not started. Tap �Update� to begin tracking.</p>
+            <p class="muted">Checklist not started. Tap "Update" to begin tracking.</p>
           }
         </section>
       }    </div>

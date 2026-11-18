@@ -26,4 +26,11 @@ public partial class OwnerAccount
 
     [Precision(0)]
     public DateTime CreatedAt { get; set; }
+
+    [StringLength(10)]
+    public string Role { get; set; } = null!;
+
+    /// <summary>Comma-separated permissions (see AppPermissions). Null = the role's preset.</summary>
+    [StringLength(500)]
+    public string? Permissions { get; set; }
 }

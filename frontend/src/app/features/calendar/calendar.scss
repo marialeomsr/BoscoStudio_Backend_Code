@@ -1,13 +1,14 @@
 :host { display: block; max-width: 1200px; margin: 0 auto; }
-h1 { font-size: 18px; margin: 0; flex: 1; text-align: center; }
+.mtitle { font-size: 18px; font-weight: 500; margin: 0; flex: 1; text-align: center; color: color-mix(in srgb, var(--accent) 80%, black); }
+.views { grid-template-columns: repeat(3, 1fr); max-width: 420px; }
+.views .tile strong { line-height: 1; }
+.gridwrap { padding: 8px 10px 10px; }
 h2 { font-size: 16px; font-weight: 500; margin: 0; }
 .muted { color: var(--mat-sys-on-surface-variant); }
-.bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.bar { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; padding-bottom: 12px; }
 .nav { display: flex; align-items: center; gap: 4px; }
 
-// Status colours shared by pills and agenda rows
-.s-pre-order { --c: #78909c; } .s-pending { --c: #f57c00; } .s-confirmed { --c: #1976d2; }
-.s-shootcompleted { --c: #00897b; } .s-inpost-production { --c: #8e24aa; } .s-delivered { --c: #388e3c; }
+// Pills and agenda rows read --c (the status colour) from shared/status-colors.ts
 
 // ---- Month grid ----
 .month { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
@@ -43,7 +44,7 @@ h2 { font-size: 16px; font-weight: 500; margin: 0; }
 
 // ---- Week: 7 columns on desktop, stacked list on phones ----
 .week { display: grid; grid-template-columns: 1fr; gap: 8px; }
-.wday { border: 1px solid var(--mat-sys-outline-variant); border-radius: 12px; padding: 8px; background: var(--mat-sys-surface-container-low); }
-.wday.today { border-color: var(--mat-sys-primary); }
+.wday { padding: 8px 10px; }
+.wday.today { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent); }
 .wday header { font-weight: 500; margin-bottom: 8px; cursor: pointer; }
 @media (min-width: 900px) { .week { grid-template-columns: repeat(7, 1fr); } .entry { grid-template-columns: 1fr; } .venue { grid-column: 1; } }

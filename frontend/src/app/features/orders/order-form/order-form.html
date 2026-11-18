@@ -1,20 +1,23 @@
 <div class="page">
-  <h1>{{ isEdit() ? 'Edit order' : 'New order' }}</h1>
+  <header class="page-head blue">
+    <span class="ico"><mat-icon>{{ isEdit() ? 'edit_note' : 'add_circle' }}</mat-icon></span>
+    <h1>{{ isEdit() ? 'Edit order' : 'New order' }}</h1>
+  </header>
 
   <form [formGroup]="form" (ngSubmit)="save()">
     <!-- ===== Client (create only) ===== -->
     @if (!isEdit()) {
-      <section class="card">
+      <section class="panel blue">>
         <div class="section-head">
           <h2>Client</h2>
           <button mat-button type="button" (click)="toggleNewClient()">{{ newClientMode() ? 'Pick existing' : 'New client' }}</button>
         </div>
         @if (newClientMode()) {
           <div class="grid2" formGroupName="newClient">
-            <mat-form-field appearance="outline"><mat-label>Full name</mat-label><input matInput formControlName="fullName" /></mat-form-field>
-            <mat-form-field appearance="outline"><mat-label>Phone</mat-label><input matInput type="tel" formControlName="phone" /></mat-form-field>
-            <mat-form-field appearance="outline"><mat-label>WhatsApp (optional)</mat-label><input matInput type="tel" formControlName="whatsAppNo" /></mat-form-field>
-            <mat-form-field appearance="outline"><mat-label>Email (optional)</mat-label><input matInput type="email" formControlName="email" /></mat-form-field>
+            <mat-form-field appearance="outline"><mat-label>Full name</mat-label><input matInput formControlName="fullName" /><mat-error auto></mat-error></mat-form-field>
+            <mat-form-field appearance="outline"><mat-label>Phone</mat-label><input matInput type="tel" appInputType="phone" formControlName="phone" /><mat-error auto></mat-error></mat-form-field>
+            <mat-form-field appearance="outline"><mat-label>WhatsApp (optional)</mat-label><input matInput type="tel" appInputType="phone" formControlName="whatsAppNo" /><mat-error auto></mat-error></mat-form-field>
+            <mat-form-field appearance="outline"><mat-label>Email (optional)</mat-label><input matInput type="email" formControlName="email" /><mat-error auto></mat-error></mat-form-field>
           </div>
         } @else {
           <mat-form-field appearance="outline" class="full">
@@ -23,25 +26,25 @@
               @for (c of clients(); track c.clientId) { <mat-option [value]="c.clientId">{{ c.fullName }} · {{ c.phone }}</mat-option> }
             </mat-select>
             @if (!clients().length) { <mat-hint>No clients yet – choose “New client”.</mat-hint> }
-          </mat-form-field>
+          <mat-error auto></mat-error></mat-form-field>
         }
       </section>
     }
 
     <!-- ===== Event ===== -->
-    <section class="card">
+    <section class="panel purple">>
       <h2>Event</h2>
       <div class="grid2">
         <mat-form-field appearance="outline"><mat-label>Event type</mat-label>
           <mat-select formControlName="eventType" (selectionChange)="onEventTypeChange()">@for (t of eventTypes(); track t.eventTypeName) { <mat-option [value]="t.eventTypeName">{{ t.eventTypeName }}</mat-option> }</mat-select>
-        </mat-form-field>
+        <mat-error auto></mat-error></mat-form-field>
         <mat-form-field appearance="outline"><mat-label>Package</mat-label>
           <mat-select formControlName="packageId" (selectionChange)="onPackageChange($event.value)">
             <mat-option [value]="null">Custom (no package)</mat-option>
             @for (p of filteredPackages(); track p.packageId) { <mat-option [value]="p.packageId">{{ p.packageName }} ({{ p.basePrice | inr }})</mat-option> }
           </mat-select>
-        </mat-form-field>
-        <mat-form-field appearance="outline" class="full"><mat-label>Venue / location</mat-label><input matInput formControlName="venue" /></mat-form-field>
+        <mat-error auto></mat-error></mat-form-field>
+        <mat-form-field appearance="outline" class="full"><mat-label>Venue / location</mat-label><input matInput formControlName="venue" /><mat-error auto></mat-error></mat-form-field>
         @if (!isEdit()) {
           <mat-form-field appearance="outline"><mat-label>Start as</mat-label>
             <mat-select formControlName="initialStatus">
@@ -49,13 +52,13 @@
               <mat-option value="Pending">Pending</mat-option>
               <mat-option value="Confirmed">Confirmed</mat-option>
             </mat-select>
-          </mat-form-field>
+          <mat-error auto></mat-error></mat-form-field>
         }
       </div>
     </section>
 
     <!-- ===== Date & time slots ===== -->
-    <section class="card">
+    <section class="panel teal">>
       <div class="section-head">
         <h2>Dates &amp; time slots</h2>
         <button mat-stroked-button type="button" (click)="addSlot()"><mat-icon>add</mat-icon> Slot</button>
@@ -63,10 +66,10 @@
       <div formArrayName="slots">
         @for (slot of slots.controls; track $index) {
           <div class="slot" [formGroupName]="$index">
-            <mat-form-field appearance="outline"><mat-label>Date</mat-label><input matInput type="date" formControlName="eventDate" /></mat-form-field>
-            <mat-form-field appearance="outline"><mat-label>From</mat-label><input matInput type="time" formControlName="startTime" /></mat-form-field>
-            <mat-form-field appearance="outline"><mat-label>To</mat-label><input matInput type="time" formControlName="endTime" /></mat-form-field>
-            <mat-form-field appearance="outline" class="slot-title"><mat-label>Title (e.g. Haldi)</mat-label><input matInput formControlName="title" /></mat-form-field>
+            <mat-form-field appearance="outline"><mat-label>Date</mat-label><input matInput type="date" formControlName="eventDate" /><mat-error auto></mat-error></mat-form-field>
+            <mat-form-field appearance="outline"><mat-label>From</mat-label><input matInput type="time" formControlName="startTime" /><mat-error auto></mat-error></mat-form-field>
+            <mat-form-field appearance="outline"><mat-label>To</mat-label><input matInput type="time" formControlName="endTime" /><mat-error auto></mat-error></mat-form-field>
+            <mat-form-field appearance="outline" class="slot-title"><mat-label>Title (e.g. Haldi)</mat-label><input matInput formControlName="title" /><mat-error auto></mat-error></mat-form-field>
             <button mat-icon-button type="button" aria-label="Remove slot" [disabled]="slots.length === 1" (click)="removeSlot($index)"><mat-icon>delete</mat-icon></button>
           </div>
         }
@@ -75,19 +78,32 @@
     </section>
 
     <!-- ===== Pricing ===== -->
-    <section class="card">
+    <section class="panel amber">>
       <h2>Pricing</h2>
       <div class="grid3">
-        <mat-form-field appearance="outline"><mat-label>Package amount</mat-label><input matInput type="number" inputmode="decimal" formControlName="packageAmount" /></mat-form-field>
-        <mat-form-field appearance="outline"><mat-label>Discount</mat-label><input matInput type="number" inputmode="decimal" formControlName="discountAmount" /></mat-form-field>
-        <mat-form-field appearance="outline"><mat-label>Tax %</mat-label><input matInput type="number" inputmode="decimal" formControlName="taxPercent" /></mat-form-field>
+        <mat-form-field appearance="outline"><mat-label>Package amount</mat-label><input matInput type="number" inputmode="decimal" formControlName="packageAmount" /><mat-error auto></mat-error></mat-form-field>
+        <mat-form-field appearance="outline"><mat-label>Discount</mat-label><input matInput type="number" inputmode="decimal" formControlName="discountAmount" /><mat-error auto></mat-error></mat-form-field>
+        <mat-form-field appearance="outline"><mat-label>Show tax as</mat-label>
+          <mat-select formControlName="taxSplit" (selectionChange)="onTaxSplitChange()"><mat-option value="Single">One tax line</mat-option><mat-option value="CGST+SGST">CGST + SGST (separate rates)</mat-option></mat-select>
+        <mat-error auto></mat-error></mat-form-field>
+        @if (form.controls.taxSplit.value === 'CGST+SGST') {
+          <mat-form-field appearance="outline"><mat-label>CGST %</mat-label><input matInput type="number" inputmode="decimal" formControlName="cgstPercent" /><mat-error auto></mat-error></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>SGST %</mat-label><input matInput type="number" inputmode="decimal" formControlName="sgstPercent" /><mat-error auto></mat-error></mat-form-field>
+        } @else {
+          <mat-form-field appearance="outline"><mat-label>Tax %</mat-label><input matInput type="number" inputmode="decimal" formControlName="taxPercent" /><mat-error auto></mat-error></mat-form-field>
+        }
       </div>
       <dl class="preview">
         <dt>After discount</dt><dd>{{ preview().net | inr }}</dd>
-        <dt>Tax</dt><dd>{{ preview().tax | inr }}</dd>
+        @if (form.controls.taxSplit.value === 'CGST+SGST' && preview().tax > 0) {
+          <dt>CGST ({{ form.controls.cgstPercent.value ?? 0 }}%)</dt><dd>{{ preview().cgst | inr }}</dd>
+          <dt>SGST ({{ form.controls.sgstPercent.value ?? 0 }}%)</dt><dd>{{ preview().tax - preview().cgst | inr }}</dd>
+        } @else {
+          <dt>Tax</dt><dd>{{ preview().tax | inr }}</dd>
+        }
         <dt class="strong">Total</dt><dd class="strong">{{ preview().total | inr }}</dd>
       </dl>
-      <mat-form-field appearance="outline" class="full"><mat-label>Notes</mat-label><textarea matInput rows="2" formControlName="notes"></textarea></mat-form-field>
+      <mat-form-field appearance="outline" class="full"><mat-label>Notes</mat-label><textarea matInput rows="2" formControlName="notes"></textarea><mat-error auto></mat-error></mat-form-field>
     </section>
 
     <div class="actions">

@@ -1,7 +1,8 @@
 import { DatePipe } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
+import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { RouterLink } from '@angular/router';
 import { StudioApi } from '../../core/api/studio-api';
@@ -11,33 +12,43 @@ import { AlbumEditDialog } from '../../shared/components/album-edit-dialog';
 
 const AWAITING_OWNER = ['Photo Selection Pending', 'Sheet Designing', 'Client Proofing', 'Album Received'];
 
-/** All albums across orders, filterable by stage, with one-tap "advance to next stage". */
+/** All albums across orders. The count tiles double as the stage filter (same tiles as the Home page strip). */
 @Component({
   selector: 'app-albums',
-  imports: [DatePipe, RouterLink, MatButtonModule],
+  imports: [DatePipe, RouterLink, MatButtonModule, MatIconModule],
   template: `
-    <h1>Albums</h1>
-    <div class="chips" role="group" aria-label="Filter by stage">
-      <button mat-stroked-button [class.on]="filter() === ''" (click)="filter.set('')">All ({{ albums().length }})</button>
-      <button mat-stroked-button [class.on]="filter() === 'action'" (click)="filter.set('action')">Needs my action ({{ actionCount() }})</button>
+    <header class="page-head purple">
+      <span class="ico"><mat-icon>photo_album</mat-icon></span>
+      <h1>Albums <span class="sub">{{ albums().length }} album(s) · {{ actionCount() }} need your action</span></h1>
+    </header>
+
+    <div class="tiles" role="group" aria-label="Filter albums">
+      <button type="button" class="tile slate" [class.on]="filter() === ''" (click)="filter.set('')">
+        <strong>{{ albums().length }}</strong><small>All albums</small>
+      </button>
+      <button type="button" class="tile amber" [class.on]="filter() === 'action'" [class.zero]="actionCount() === 0" (click)="filter.set('action')">
+        <strong>{{ actionCount() }}</strong><small>Needs my action</small>
+      </button>
       @for (s of stages; track s) {
-        <button mat-stroked-button [class.on]="filter() === s" (click)="filter.set(s)">{{ s }} ({{ count(s) }})</button>
+        <button type="button" class="tile purple" [class.on]="filter() === s" [class.zero]="count(s) === 0" (click)="filter.set(s)">
+          <strong>{{ count(s) }}</strong><small>{{ s }}</small>
+        </button>
       }
     </div>
 
     <div class="cards">
       @for (a of visible(); track a.albumId) {
-        <article class="card">
+        <article class="panel purple">
           <header>
             <a [routerLink]="['/orders', a.orderId]"><strong>{{ a.clientName }}</strong></a>
             <span class="stage">{{ a.albumStage }}</span>
           </header>
           <p class="muted">{{ a.orderNumber }} · {{ a.albumType }} · {{ a.sheetCount }} sheets</p>
           @if (a.printVendorName) { <p class="muted">Vendor: {{ a.printVendorName }}@if (a.printVendorContact) { ({{ a.printVendorContact }}) }</p> }
+          @else { <p class="muted">No print vendor yet.</p> }
           @if (a.sentToPrintOn) { <p class="muted">Sent to print {{ a.sentToPrintOn | date: 'd MMM' }}</p> }
           @if (a.receivedOn) { <p class="muted">Received {{ a.receivedOn | date: 'd MMM' }}</p> }
           <div class="bar"><span [style.width.%]="progress(a)"></span></div>
-          @if (!a.printVendorName) { <p class="muted">No print vendor yet.</p> }
           <div class="row">
             @if (a.nextStage; as next) {
               <button mat-flat-button [disabled]="busy()" (click)="advance(a, next)">Mark: {{ next }}</button>
@@ -49,16 +60,14 @@ const AWAITING_OWNER = ['Photo Selection Pending', 'Sheet Designing', 'Client Pr
     </div>
   `,
   styles: `
-    h1 { font-size: 22px; margin: 0 0 12px; }
-    .chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; button { flex: none; } }
-    .chips .on { background: color-mix(in srgb, var(--mat-sys-primary) 14%, transparent); }
-    .cards { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); margin-top: 8px; }
-    .card { background: var(--mat-sys-surface-container-low); border: 1px solid var(--mat-sys-outline-variant); border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 4px; }
-    header { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+    :host { display: block; max-width: 1200px; margin: 0 auto; }
+    .cards { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); }
+    .panel { display: flex; flex-direction: column; gap: 3px; padding-top: 12px; }
+    .panel > header { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
     a { color: inherit; }
-    .stage { font-size: 12px; color: var(--mat-sys-primary); font-weight: 500; text-align: right; }
+    .stage { font-size: 12px; font-weight: 500; text-align: right; color: color-mix(in srgb, var(--accent) 80%, black); background: color-mix(in srgb, var(--accent) 12%, white); border-radius: 999px; padding: 1px 10px; }
     .muted { color: var(--mat-sys-on-surface-variant); margin: 0; font-size: 13px; }
-    .bar { height: 6px; border-radius: 3px; background: var(--mat-sys-surface-variant); margin: 8px 0; overflow: hidden; span { display: block; height: 100%; background: var(--mat-sys-primary); } }
+    .bar { height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--accent) 15%, white); margin: 8px 0; overflow: hidden; span { display: block; height: 100%; background: var(--accent); } }
     .done { color: #2e7d32; }
     .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
   `,
@@ -67,6 +76,9 @@ export class Albums {
   private readonly api = inject(StudioApi);
   private readonly snack = inject(MatSnackBar);
   private readonly dialog = inject(MatDialog);
+
+  /** ?stage=... from the home page's "Albums by stage" strip. */
+  readonly stage = input<string>();
 
   protected readonly stages = ALBUM_STAGES;
   protected readonly albums = signal<Album[]>([]);
@@ -81,6 +93,7 @@ export class Albums {
   });
 
   constructor() {
+    effect(() => { const s = this.stage(); if (s) this.filter.set(s); });
     this.load();
   }
 

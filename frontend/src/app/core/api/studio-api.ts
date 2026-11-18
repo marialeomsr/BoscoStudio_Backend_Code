@@ -1,11 +1,12 @@
-﻿import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import {
-  Album, CalendarItem, Client, CreateAlbumRequest, CreateDocumentRequest, CreateOrderRequest, DocumentDetail, DocumentSummary,
+  Album, CalendarItem, ChangePasswordRequest, ClientRecord, SaveClientRequest, CreateAlbumRequest, CreateDocumentRequest, CreateOrderRequest, DocumentDetail, DocumentSummary,
   PackageInfo, PaymentLedgerItem, UpdateOrderRequest, CreateExpenseRequest, CreatePaymentRequest, Dashboard, Expense,
   OrderDetail, OrderSummary, Payment, UpdateAlbumRequest, UpdateDeliverableRequest,
+  CreateOwnerRequest, UpdateOwnerRequest, Branding, LoginResponse, OwnerInfo, OwnerRole, UpdateProfileRequest,
   EventTypeInfo, SaveEventTypeRequest, SavePackageRequest, StudioSettings, UpdateDocumentRequest,
 } from '../models/studio.models';
 
@@ -78,8 +79,51 @@ export class StudioApi {
   updateOrder(id: number, body: UpdateOrderRequest): Observable<OrderDetail> {
     return this.http.put<OrderDetail>(`${this.base}/orders/${id}`, body);
   }
-  clients(search = ''): Observable<Client[]> {
-    return this.http.get<Client[]>(`${this.base}/clients`, { params: { search } });
+  // ----- Clients -----
+  clients(search = ''): Observable<ClientRecord[]> {
+    return this.http.get<ClientRecord[]>(`${this.base}/clients`, { params: { search } });
+  }
+  createClient(body: SaveClientRequest): Observable<ClientRecord> {
+    return this.http.post<ClientRecord>(`${this.base}/clients`, body);
+  }
+  updateClient(id: number, body: SaveClientRequest): Observable<ClientRecord> {
+    return this.http.put<ClientRecord>(`${this.base}/clients/${id}`, body);
+  }
+  deleteClient(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/clients/${id}`);
+  }
+
+  // ----- Account & owners -----
+  changePassword(body: ChangePasswordRequest): Observable<void> {
+    return this.http.post<void>(`${this.base}/auth/change-password`, body);
+  }
+  me(): Observable<OwnerInfo> {
+    return this.http.get<OwnerInfo>(`${this.base}/auth/me`);
+  }
+  /** Returns a fresh session: the old token still carries the old username. */
+  updateProfile(body: UpdateProfileRequest): Observable<LoginResponse> {
+    return this.http.put<LoginResponse>(`${this.base}/auth/profile`, body);
+  }
+  owners(): Observable<OwnerInfo[]> {
+    return this.http.get<OwnerInfo[]>(`${this.base}/owners`);
+  }
+  createOwner(body: CreateOwnerRequest): Observable<OwnerInfo> {
+    return this.http.post<OwnerInfo>(`${this.base}/owners`, body);
+  }
+  updateOwner(id: number, body: UpdateOwnerRequest): Observable<OwnerInfo> {
+    return this.http.put<OwnerInfo>(`${this.base}/owners/${id}`, body);
+  }
+  branding(): Observable<Branding> {
+    return this.http.get<Branding>(`${this.base}/auth/branding`);
+  }
+  changeOwnerRole(id: number, role: OwnerRole): Observable<OwnerInfo> {
+    return this.http.put<OwnerInfo>(`${this.base}/owners/${id}/role`, { role });
+  }
+  deleteOwner(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/owners/${id}`);
+  }
+  resetOwnerPassword(id: number, newPassword: string): Observable<void> {
+    return this.http.put<void>(`${this.base}/owners/${id}/password`, { newPassword });
   }
   defaultTax(): Observable<number> {
     return this.http.get<number>(`${this.base}/settings/default-tax`);

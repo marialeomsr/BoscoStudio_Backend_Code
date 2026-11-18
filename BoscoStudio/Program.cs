@@ -27,6 +27,8 @@ builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IDocumentService, DocumentService>();
 builder.Services.AddScoped<ILookupService, LookupService>();
 builder.Services.AddScoped<ICatalogService, CatalogService>();
+builder.Services.AddScoped<IClientService, ClientService>();
+builder.Services.AddScoped<IOwnerService, OwnerService>();
 builder.Services.AddScoped<IStudioSettingsService, StudioSettingsService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 
@@ -34,15 +36,43 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 var jwt = builder.Configuration.GetSection("Jwt").Get<JwtOptions>()!;
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(o => o.TokenValidationParameters = new TokenValidationParameters
+    .AddJwtBearer(o =>
     {
-        ValidIssuer = jwt.Issuer,
-        ValidAudience = jwt.Audience,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.SigningKey)),
-        ClockSkew = TimeSpan.FromMinutes(1)
+        o.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidIssuer = jwt.Issuer,
+            ValidAudience = jwt.Audience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.SigningKey)),
+            ClockSkew = TimeSpan.FromMinutes(1)
+        };
+        // A token only counts while its owner account still exists (deleting an owner ends their session at once).
+        o.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = async ctx =>
+            {
+                var db = ctx.HttpContext.RequestServices.GetRequiredService<PhotoStudioDbContext>();
+                var idClaim = ctx.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                var roleClaim = ctx.Principal?.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+                if (!int.TryParse(idClaim, out int ownerId))
+                {
+                    ctx.Fail("Invalid token.");
+                    return;
+                }
+                // The account must still exist AND still have the role the token was issued with
+                // (a removed or re-roled owner is signed out and logs in again with the current role).
+                var current = await db.OwnerAccounts.Where(a => a.OwnerId == ownerId).Select(a => new { a.Role, a.Permissions }).FirstOrDefaultAsync();
+                string tokenPermissions = string.Join(',', ctx.Principal!.FindAll(BoscoStudio.Application.Common.AppPermissions.ClaimType).Select(c => c.Value).Order());
+                if (current is null || current.Role != roleClaim
+                    || string.Join(',', BoscoStudio.Application.Common.AppPermissions.Effective(current.Role, current.Permissions)) != tokenPermissions)
+                    ctx.Fail("Owner account changed or removed.");
+            }
+        };
     });
-builder.Services.AddAuthorizationBuilder()
+var authorization = builder.Services.AddAuthorizationBuilder()
     .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
+foreach (string permission in BoscoStudio.Application.Common.AppPermissions.All)
+    authorization.AddPolicy(BoscoStudio.Application.Common.AppPermissions.Policy(permission),
+        p => p.RequireClaim(BoscoStudio.Application.Common.AppPermissions.ClaimType, permission));
 
 // ---------- MVC, validation, Swagger ----------
 builder.Services.AddControllers();

@@ -149,6 +149,8 @@ export interface OrderDetail {
   albums: Album[];
   allowedNextStatuses: OrderStatus[];
   documents: OrderDocumentRef[];
+  taxSplit: TaxSplit;
+  taxLines: TaxLine[];
 }
 
 export interface MonthlyFinance {
@@ -157,21 +159,80 @@ export interface MonthlyFinance {
   expenses: number;
 }
 
+export interface DueBalance {
+  orderId: number;
+  orderNumber: string;
+  clientName: string;
+  phone: string | null;
+  whatsAppNo: string | null;
+  eventDate: string;
+  orderStatus: OrderStatus;
+  balanceDue: number;
+}
+
+export interface AlbumStageCount {
+  stage: AlbumStage;
+  count: number;
+}
+
 export interface Dashboard {
   upcomingShootCount: number;
   upcomingShoots: OrderSummary[];
+  completedShoots: OrderSummary[];
   pendingClientBalance: number;
   ordersWithBalance: number;
   albumsAwaitingAction: number;
   monthRevenue: number;
   monthExpenses: number;
   lastSixMonths: MonthlyFinance[];
+  overdueShoots: OrderSummary[];
+  dueBalances: DueBalance[];
+  dueBalanceCount: number;
+  dueBalanceTotal: number;
+  albumsByStage: AlbumStageCount[];
 }
+
+export type OwnerRole = 'Admin' | 'Manager' | 'Staff';
+/** Every permission, grouped for the owner editor. Keys match BoscoStudio/Application/Common/AppPermissions.cs. */
+export interface PermissionInfo { key: string; label: string }
+export const PERMISSION_GROUPS: { title: string; items: PermissionInfo[] }[] = [
+  { title: 'Orders', items: [
+    { key: 'orders.edit', label: 'Create and edit orders, change status' },
+    { key: 'orders.delete', label: 'Delete orders' },
+  ] },
+  { title: 'Payments', items: [
+    { key: 'payments.record', label: 'Record payments and expenses' },
+    { key: 'payments.delete', label: 'Delete payments and expenses' },
+  ] },
+  { title: 'Albums', items: [
+    { key: 'albums.edit', label: 'Create and edit albums' },
+    { key: 'albums.delete', label: 'Delete albums' },
+  ] },
+  { title: 'Clients', items: [
+    { key: 'clients.edit', label: 'Add and edit clients' },
+    { key: 'clients.delete', label: 'Delete clients' },
+  ] },
+  { title: 'Quotations & invoices', items: [{ key: 'documents.manage', label: 'Create and edit quotations and invoices' }] },
+  { title: 'Administration', items: [
+    { key: 'settings.manage', label: 'Settings: studio details, event types, packages' },
+    { key: 'owners.manage', label: 'Owner accounts and permissions' },
+  ] },
+];
+
+export const OWNER_ROLES: OwnerRole[] = ['Admin', 'Manager', 'Staff'];
+export const ROLE_HELP: Record<OwnerRole, string> = {
+  Admin: 'Everything, including Settings and owner accounts',
+  Manager: 'Everything except Settings and owner accounts',
+  Staff: 'Orders, calendar, albums, clients and recording payments. No deleting, no quotations or invoices',
+};
 
 export interface LoginResponse {
   token: string;
   expiresAtUtc: string;
   fullName: string;
+  role: OwnerRole;
+  /** What this owner may do (see PERMISSION_GROUPS). */
+  permissions: string[];
 }
 
 // ---------- Requests ----------
@@ -231,6 +292,9 @@ export interface UpdateOrderRequest {
   packageAmount: number | null;
   discountAmount: number;
   taxPercent: number | null;
+  taxSplit: TaxSplit;
+  /** CGST rate when split (SGST = taxPercent - cgstPercent). */
+  cgstPercent?: number | null;
   slots: EventSlotRequest[];
   allowOverlap: boolean;
 }
@@ -300,10 +364,82 @@ export interface StudioSettings {
   logoUrl: string | null;
 }
 
+export interface DocumentLineRequest {
+  description: string;
+  quantity: number;
+  unitPrice: number;
+}
+
 export interface UpdateDocumentRequest {
   dueDate: string | null;
   notes: string | null;
   terms: string | null;
+  /** Omit to keep the current items. Their total becomes the order's package amount. */
+  lines?: DocumentLineRequest[];
+  /** Omit to keep. Discount and tax % are written through to the order, so every document of it shows the same figures. */
+  discountAmount?: number;
+  taxPercent?: number;
+  /** Display only: the total is the same either way. */
+  taxSplit?: TaxSplit;
+  /** CGST rate when split (SGST = taxPercent - cgstPercent). */
+  cgstPercent?: number | null;
+}
+
+// ---------- Owner accounts ----------
+
+export interface OwnerInfo {
+  ownerId: number;
+  username: string;
+  fullName: string;
+  email: string | null;
+  role: OwnerRole;
+  createdAt: string;
+  isCurrent: boolean;
+  permissions: string[];
+}
+
+export interface CreateOwnerRequest {
+  username: string;
+  fullName: string;
+  email: string | null;
+  password: string;
+  role: OwnerRole;
+}
+
+export interface UpdateProfileRequest {
+  username: string;
+  fullName: string;
+  email: string | null;
+  currentPassword: string;
+}
+
+/** Client with the number of orders (Clients screen). */
+export interface ClientRecord extends Client {
+  notes: string | null;
+  orderCount: number;
+}
+
+export interface SaveClientRequest {
+  fullName: string;
+  phone: string;
+  whatsAppNo: string | null;
+  email: string | null;
+  address: string | null;
+  notes: string | null;
+}
+
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+
+export type TaxSplit = 'Single' | 'CGST+SGST';
+
+/** One printed tax line: "Tax 18%", or "CGST 9%" + "SGST 9%" when split. */
+export interface TaxLine {
+  label: string;
+  percent: number;
+  amount: number;
 }
 
 export interface OrderDocumentRef {
@@ -380,6 +516,8 @@ export interface DocumentDetail {
   payments: Payment[];
   totalPaid: number;
   balanceDue: number;
+  taxSplit: TaxSplit;
+  taxLines: TaxLine[];
 }
 
 export interface CreateDocumentRequest {
@@ -387,4 +525,20 @@ export interface CreateDocumentRequest {
   dueDate: string | null;
   notes: string | null;
   terms: string | null;
+}
+
+/** Admin editing another owner; a blank newPassword keeps the current one. */
+export interface UpdateOwnerRequest {
+  username: string;
+  fullName: string;
+  email: string | null;
+  newPassword: string | null;
+  /** Omit (or null) to leave unchanged; ignored for Admins. */
+  permissions?: string[] | null;
+}
+
+/** Shown on the sign-in page. */
+export interface Branding {
+  studioName: string;
+  tagline: string | null;
 }

@@ -9,6 +9,7 @@ import { Observable } from 'rxjs';
 import { StudioApi } from '../../core/api/studio-api';
 import { Album } from '../../core/models/studio.models';
 import { describeError } from '../api-error';
+import { AutoError, intRange, money, phoneOrEmail } from '../validators';
 
 export interface AlbumEditData {
   album: Album;
@@ -19,19 +20,19 @@ export interface AlbumEditData {
 /** Edit album type, sheets and print vendor details at any stage. Closes with the updated Album, or undefined if dismissed. */
 @Component({
   selector: 'app-album-edit-dialog',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatFormFieldModule, MatInputModule],
+  imports: [ReactiveFormsModule, AutoError, MatDialogModule, MatButtonModule, MatFormFieldModule, MatInputModule],
   template: `
     <h2 mat-dialog-title>Edit album</h2>
     <form [formGroup]="form" (ngSubmit)="save()">
       <mat-dialog-content>
         @if (data.hint) { <p class="hint">{{ data.hint }}</p> }
         <div class="grid">
-          <mat-form-field appearance="outline" class="full"><mat-label>Album type</mat-label><input matInput formControlName="albumType" /></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>Sheets</mat-label><input matInput type="number" inputmode="numeric" formControlName="sheetCount" /></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>Print cost</mat-label><input matInput type="number" inputmode="decimal" formControlName="printCost" /></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>Print vendor</mat-label><input matInput formControlName="printVendorName" /></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>Vendor contact</mat-label><input matInput formControlName="printVendorContact" /></mat-form-field>
-          <mat-form-field appearance="outline" class="full"><mat-label>Notes</mat-label><textarea matInput rows="2" formControlName="notes"></textarea></mat-form-field>
+          <mat-form-field appearance="outline" class="full"><mat-label>Album type</mat-label><input matInput formControlName="albumType" /><mat-error auto></mat-error></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>Sheets</mat-label><input matInput type="number" inputmode="numeric" formControlName="sheetCount" /><mat-error auto></mat-error></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>Print cost</mat-label><input matInput type="number" inputmode="decimal" formControlName="printCost" /><mat-error auto></mat-error></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>Print vendor</mat-label><input matInput formControlName="printVendorName" /><mat-error auto></mat-error></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>Vendor contact</mat-label><input matInput formControlName="printVendorContact" /><mat-error auto></mat-error></mat-form-field>
+          <mat-form-field appearance="outline" class="full"><mat-label>Notes</mat-label><textarea matInput rows="2" formControlName="notes"></textarea><mat-error auto></mat-error></mat-form-field>
         </div>
       </mat-dialog-content>
       <mat-dialog-actions align="end">
@@ -55,11 +56,11 @@ export class AlbumEditDialog {
 
   protected readonly form = inject(NonNullableFormBuilder).group({
     albumType: [this.data.album.albumType, [Validators.required, Validators.maxLength(60)]],
-    sheetCount: [this.data.album.sheetCount, [Validators.required, Validators.min(1)]],
-    printCost: this.data.album.printCost as number | null,
-    printVendorName: this.data.album.printVendorName ?? '',
-    printVendorContact: this.data.album.printVendorContact ?? '',
-    notes: this.data.album.notes ?? '',
+    sheetCount: [this.data.album.sheetCount, [Validators.required, intRange(1, 500)]],
+    printCost: [this.data.album.printCost as number | null, money],
+    printVendorName: [this.data.album.printVendorName ?? '', Validators.maxLength(120)],
+    printVendorContact: [this.data.album.printVendorContact ?? '', [phoneOrEmail, Validators.maxLength(60)]],
+    notes: [this.data.album.notes ?? '', Validators.maxLength(500)],
   });
 
   protected save(): void {

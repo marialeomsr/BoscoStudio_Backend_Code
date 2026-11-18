@@ -1,25 +1,37 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
+import { AuthService } from '../../core/auth/auth.service';
+import { MatIconModule } from '@angular/material/icon';
 import { MatTabsModule } from '@angular/material/tabs';
 import { EventTypesSettings } from './event-types-settings';
+import { OwnersSettings } from './owners-settings';
 import { PackagesSettings } from './packages-settings';
 import { StudioSettingsForm } from './studio-settings';
 
 /** Everything the owner configures: studio details (printed on documents), event types, and packages per event type. */
 @Component({
   selector: 'app-settings',
-  imports: [MatTabsModule, StudioSettingsForm, EventTypesSettings, PackagesSettings],
+  imports: [MatIconModule, MatTabsModule, StudioSettingsForm, EventTypesSettings, PackagesSettings, OwnersSettings],
   template: `
-    <h1>Settings</h1>
+    <header class="page-head slate">
+      <span class="ico"><mat-icon>settings</mat-icon></span>
+      <h1>Settings <span class="sub">studio details, event types, packages, owners</span></h1>
+    </header>
+    <section class="panel slate">
     <mat-tab-group animationDuration="0" mat-stretch-tabs="false" mat-align-tabs="start">
-      <mat-tab label="Studio details"><div class="pane"><app-studio-settings-form /></div></mat-tab>
-      <mat-tab label="Event types"><div class="pane"><app-event-types-settings /></div></mat-tab>
-      <mat-tab label="Packages"><div class="pane"><app-packages-settings /></div></mat-tab>
+      @if (auth.can('settings.manage')) {
+        <mat-tab label="Studio details"><div class="pane"><app-studio-settings-form /></div></mat-tab>
+        <mat-tab label="Event types"><div class="pane"><app-event-types-settings /></div></mat-tab>
+        <mat-tab label="Packages"><div class="pane"><app-packages-settings /></div></mat-tab>
+      }
+      @if (auth.can('owners.manage')) { <mat-tab label="Owners"><div class="pane"><app-owners-settings /></div></mat-tab> }
     </mat-tab-group>
+    </section>
   `,
   styles: `
     :host { display: block; max-width: 900px; margin: 0 auto; }
-    h1 { font-size: 22px; margin: 0 0 8px; }
     .pane { padding-top: 16px; }
   `,
 })
-export class Settings {}
+export class Settings {
+  protected readonly auth = inject(AuthService);
+}

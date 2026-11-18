@@ -17,9 +17,15 @@ public class DashboardService(PhotoStudioDbContext db, IOrderService orders) : I
         var today = DateOnly.FromDateTime(DateTime.Today);
         var monthStart = new DateOnly(today.Year, today.Month, 1);
 
-        // 1. Upcoming shoots: next 7 days (today inclusive), not cancelled.
-        var upcoming = (await orders.GetListAsync(null, today, today.AddDays(7), null, ct))
-            .Where(o => o.OrderStatus != OrderStatuses.Cancelled).ToList();
+        // 1. Shoots, split by whether the shoot has happened (judged by status, not just date):
+        //    upcoming  = still to be shot (Pre-Order / Pending / Confirmed), today .. +7 days
+        //    completed = shot already (Shoot Completed / In Post-Production / Delivered), last 30 days .. +7 days
+        var window = await orders.GetListAsync(null, today.AddDays(-30), today.AddDays(7), null, ct);
+        string[] toShoot = [OrderStatuses.PreOrder, OrderStatuses.Pending, OrderStatuses.Confirmed];
+        string[] shot = [OrderStatuses.ShootCompleted, OrderStatuses.InPostProduction, OrderStatuses.Delivered];
+
+        var upcoming = window.Where(o => toShoot.Contains(o.OrderStatus) && o.EventDate >= today).OrderBy(o => o.EventDate).ToList();
+        var completed = window.Where(o => shot.Contains(o.OrderStatus)).OrderByDescending(o => o.EventDate).ToList();
 
         // 2. Pending balances: live orders that are past the quote stage and still owe money.
         var balances = await db.Orders.AsNoTracking()
@@ -28,8 +34,30 @@ public class DashboardService(PhotoStudioDbContext db, IOrderService orders) : I
             .Where(b => b > 0)
             .ToListAsync(ct);
 
-        // 3. Albums where the owner must act next.
+        // 2b. Overdue: still Confirmed although the shoot date has passed (probably never marked "Shoot Completed").
+        var overdue = (await orders.GetListAsync(OrderStatuses.Confirmed, null, today.AddDays(-1), null, ct)).Take(10).ToList();
+
+        // 2c. Balances to collect now: owing money and the shoot is within the next 7 days or already behind us.
+        var due = (await db.Orders.AsNoTracking()
+                .Where(o => o.OrderStatus != OrderStatuses.Cancelled && o.OrderStatus != OrderStatuses.PreOrder
+                         && o.EventDate <= today.AddDays(7))
+                .Select(o => new
+                {
+                    o.OrderId, o.OrderNumber, o.Client.FullName, o.Client.Phone, o.Client.WhatsAppNo, o.EventDate, o.OrderStatus,
+                    Balance = (o.TotalAmount ?? 0) - o.Payments.Sum(p => p.Amount)
+                })
+                .Where(x => x.Balance > 0)
+                .OrderBy(x => x.EventDate)
+                .ToListAsync(ct))
+            .Select(x => new DueBalanceDto(x.OrderId, x.OrderNumber, x.FullName, x.Phone, x.WhatsAppNo, x.EventDate, x.OrderStatus, x.Balance))
+            .ToList();
+
+        // 3. Albums where the owner must act next, plus the count in every stage (stuck-album strip).
         int albums = await db.Albums.CountAsync(a => AlbumStages.AwaitingOwner.Contains(a.AlbumStage), ct);
+        var perStage = await db.Albums.AsNoTracking().GroupBy(a => a.AlbumStage)
+            .Select(g => new { Stage = g.Key, Count = g.Count() }).ToListAsync(ct);
+        var albumsByStage = AlbumStages.Pipeline
+            .Select(s => new AlbumStageCountDto(s, perStage.FirstOrDefault(x => x.Stage == s)?.Count ?? 0)).ToList();
 
         // 4. Revenue (payments received) vs expenses (order expenses + album print costs by date) for 6 months.
         var from = monthStart.AddMonths(-5);
@@ -52,8 +80,9 @@ public class DashboardService(PhotoStudioDbContext db, IOrderService orders) : I
         }).ToList();
 
         return new DashboardDto(
-            upcoming.Count, upcoming.Take(5).ToList(),
+            upcoming.Count, upcoming.Take(5).ToList(), completed.Take(5).ToList(),
             balances.Sum(), balances.Count, albums,
-            series[^1].Revenue, series[^1].Expenses, series);
+            series[^1].Revenue, series[^1].Expenses, series,
+            overdue, due.Take(8).ToList(), due.Count, due.Sum(d => d.BalanceDue), albumsByStage);
     }
 }

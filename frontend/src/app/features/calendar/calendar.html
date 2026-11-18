@@ -1,20 +1,26 @@
-<div class="bar">
-  <div class="nav">
-    <button mat-icon-button aria-label="Previous" (click)="step(-1)"><mat-icon>chevron_left</mat-icon></button>
-    <button mat-stroked-button (click)="goToday()">Today</button>
-    <button mat-icon-button aria-label="Next" (click)="step(1)"><mat-icon>chevron_right</mat-icon></button>
-  </div>
-  <h1>{{ title() }}</h1>
-  <mat-button-toggle-group [value]="view()" (change)="setView($event.value)" aria-label="Calendar view" hideSingleSelectionIndicator>
-    <mat-button-toggle value="month">Month</mat-button-toggle>
-    <mat-button-toggle value="week">Week</mat-button-toggle>
-    <mat-button-toggle value="day">Day</mat-button-toggle>
-  </mat-button-toggle-group>
+<header class="page-head teal">
+  <span class="ico"><mat-icon>calendar_month</mat-icon></span>
+  <h1>Calendar <span class="sub">{{ title() }}</span></h1>
+  <div class="actions"><a mat-flat-button routerLink="/orders/new"><mat-icon>add</mat-icon> New order</a></div>
+</header>
+
+<!-- View switch: three tiles instead of a toggle group; same look as the other screens -->
+<div class="tiles views" role="group" aria-label="Calendar view">
+  <button type="button" class="tile teal" [class.on]="view() === 'month'" (click)="setView('month')"><strong><mat-icon>calendar_view_month</mat-icon></strong><small>Month</small></button>
+  <button type="button" class="tile teal" [class.on]="view() === 'week'" (click)="setView('week')"><strong><mat-icon>calendar_view_week</mat-icon></strong><small>Week</small></button>
+  <button type="button" class="tile teal" [class.on]="view() === 'day'" (click)="setView('day')"><strong><mat-icon>calendar_view_day</mat-icon></strong><small>Day</small></button>
+</div>
+
+<div class="panel slim teal bar">
+  <button mat-icon-button aria-label="Previous" (click)="step(-1)"><mat-icon>chevron_left</mat-icon></button>
+  <h2 class="mtitle">{{ title() }}</h2>
+  <button mat-stroked-button (click)="goToday()">Today</button>
+  <button mat-icon-button aria-label="Next" (click)="step(1)"><mat-icon>chevron_right</mat-icon></button>
 </div>
 
 <!-- Reusable agenda row -->
 <ng-template #entry let-i>
-  <a class="entry" [class]="'s-' + i.orderStatus.replaceAll(' ', '').toLowerCase()" [routerLink]="['/orders', i.orderId]">
+  <a class="entry" [style.--c]="color(i.orderStatus)" [routerLink]="['/orders', i.orderId]">
     <span class="time">{{ i.startTime.slice(0, 5) }}–{{ i.endTime.slice(0, 5) }}</span>
     <span class="who"><strong>{{ i.clientName }}</strong> · {{ i.title || i.eventType }}</span>
     @if (i.venue) { <span class="venue">{{ i.venue }}</span> }
@@ -23,7 +29,7 @@
 
 @switch (view()) {
   @case ('month') {
-    <div class="month">
+    <div class="panel teal gridwrap"><div class="month">
       @for (d of weekdays; track d) { <div class="dow">{{ d }}</div> }
       @for (c of monthCells(); track c.iso) {
         <button type="button" class="day" [class.out]="!c.inMonth" [class.today]="c.isToday" [class.selected]="c.iso === selectedIso()"
@@ -31,15 +37,15 @@
           <span class="num">{{ c.date.getDate() }}</span>
           <!-- Desktop: event labels; phone: dots / count -->
           @for (i of c.items.slice(0, 2); track $index) {
-            <span class="pill desktop-only" [class]="'s-' + i.orderStatus.replaceAll(' ', '').toLowerCase()">{{ i.startTime.slice(0, 5) }} {{ i.clientName }}</span>
+            <span class="pill desktop-only" [style.--c]="color(i.orderStatus)">{{ i.startTime.slice(0, 5) }} {{ i.clientName }}</span>
           }
           @if (c.items.length > 2) { <span class="more desktop-only">+{{ c.items.length - 2 }} more</span> }
           @if (c.items.length) { <span class="count mobile-only">{{ c.items.length }}</span> }
         </button>
       }
-    </div>
+    </div></div>
 
-    <section class="agenda">
+    <section class="agenda panel teal">
       <div class="agenda-head">
         <h2>{{ selectedIso() | date: 'EEEE, d MMMM' }}</h2>
         <a mat-stroked-button [routerLink]="['/orders/new']" [queryParams]="{ date: selectedIso() }"><mat-icon>add</mat-icon> Book</a>
@@ -52,7 +58,7 @@
   @case ('week') {
     <div class="week">
       @for (c of weekCells(); track c.iso) {
-        <section class="wday" [class.today]="c.isToday">
+        <section class="wday panel teal" [class.today]="c.isToday">
           <header (click)="openDay(c.iso)">{{ c.date | date: 'EEE d MMM' }}</header>
           @for (i of c.items; track $index) { <ng-container [ngTemplateOutlet]="entry" [ngTemplateOutletContext]="{ $implicit: i }" /> }
           @empty { <p class="muted">Free</p> }
@@ -62,7 +68,7 @@
   }
 
   @case ('day') {
-    <section class="agenda">
+    <section class="agenda panel teal">
       <div class="agenda-head">
         <h2>{{ dayCell().items.length }} booking{{ dayCell().items.length === 1 ? '' : 's' }}</h2>
         <a mat-stroked-button [routerLink]="['/orders/new']" [queryParams]="{ date: dayCell().iso }"><mat-icon>add</mat-icon> Book</a>

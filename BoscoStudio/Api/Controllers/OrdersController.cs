@@ -1,3 +1,4 @@
+using BoscoStudio.Application.Common;
 using BoscoStudio.Application.Dtos;
 using BoscoStudio.Application.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -24,6 +25,7 @@ public class OrdersController(IOrderService orders) : ControllerBase
     [HttpGet("{orderId:int}")]
     public Task<OrderDetailDto> Get(int orderId, CancellationToken ct) => orders.GetDetailAsync(orderId, ct);
 
+    [RequirePermission(AppPermissions.OrdersEdit)]
     [HttpPost]
     public async Task<ActionResult<OrderDetailDto>> Create(CreateOrderRequest request, CancellationToken ct)
     {
@@ -31,18 +33,22 @@ public class OrdersController(IOrderService orders) : ControllerBase
         return CreatedAtAction(nameof(Get), new { orderId = created.OrderId }, created);
     }
 
+    [RequirePermission(AppPermissions.OrdersEdit)]
     [HttpPut("{orderId:int}")]
     public Task<OrderDetailDto> Update(int orderId, UpdateOrderRequest request, CancellationToken ct) =>
         orders.UpdateAsync(orderId, request, ct);
 
+    [RequirePermission(AppPermissions.OrdersEdit)]
     [HttpPatch("{orderId:int}/status")]
     public Task<OrderDetailDto> ChangeStatus(int orderId, ChangeOrderStatusRequest request, CancellationToken ct) =>
         orders.ChangeStatusAsync(orderId, request.Status, ct);
 
+    [RequirePermission(AppPermissions.OrdersEdit)]
     [HttpPut("{orderId:int}/deliverables")]
     public Task<OrderDetailDto> UpdateDeliverables(int orderId, UpdateDeliverableRequest request, CancellationToken ct) =>
         orders.UpdateDeliverableAsync(orderId, request, ct);
 
+    [RequirePermission(AppPermissions.OrdersDelete)]
     [HttpDelete("{orderId:int}")]
     public async Task<IActionResult> Delete(int orderId, CancellationToken ct)
     {
