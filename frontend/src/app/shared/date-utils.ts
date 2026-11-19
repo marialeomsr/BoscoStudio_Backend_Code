@@ -21,4 +21,9 @@ export function startOfWeek(d: Date): Date {
   return addDays(d, -((d.getDay() + 6) % 7));
 }
 
-export const today = () => toIsoDate(new Date());
+/** The API sends UTC timestamps without a 'Z'; without it the browser would read them as local time. */
+export function fromUtc(iso: string): Date {
+  return new Date(/[zZ]|[+-]\d\d:\d\d$/.test(iso) ? iso : `${iso}Z`);
+}
+
+export const today =() => toIsoDate(new Date());

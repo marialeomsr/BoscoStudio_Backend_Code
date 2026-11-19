@@ -27,10 +27,12 @@ public abstract class OrderRequestValidator<T> : AbstractValidator<T> where T : 
             s.RuleFor(x => x.Venue).MaximumLength(300);
         });
 
-        RuleFor(x => x.PackageAmount).MoneyOrNull();
-        RuleFor(x => x.DiscountAmount).Money();
-        RuleFor(x => x.DiscountAmount).LessThanOrEqualTo(x => x.PackageAmount!.Value)
-            .When(x => x.PackageAmount.HasValue).WithMessage("Discount cannot exceed the package amount.");
+        RuleFor(x => x.PhotoAmount).MoneyOrNull();
+        RuleFor(x => x.VideoAmount).MoneyOrNull();
+        RuleFor(x => x.AlbumAmount).MoneyOrNull();
+        RuleFor(x => x).Must(x => x.IncludePhoto || x.IncludeVideo || x.IncludeAlbum)
+            .WithMessage("Tick at least one of Photo, Video or Album.");
+        RuleFor(x => x.DiscountAmount).Money();   // "not more than the package amount" is checked in OrderService, against the ticked parts
         RuleFor(x => x.TaxPercent).PercentOrNull();
         RuleFor(x => x.TaxSplit).Must(TaxSplits.All.Contains).WithMessage("Tax split must be Single or CGST+SGST.");
         RuleFor(x => x.CgstPercent).CgstWithin(x => x.TaxPercent);
@@ -79,7 +81,7 @@ public class UpdateDeliverableRequestValidator : AbstractValidator<UpdateDeliver
     {
         foreach (var rule in new[]
         {
-            RuleFor(x => x.RawBackupStatus), RuleFor(x => x.SelectionStatus), RuleFor(x => x.PhotoEditStatus),
+            RuleFor(x => x.SelectionStatus), RuleFor(x => x.PhotoEditStatus),
             RuleFor(x => x.TeaserEditStatus), RuleFor(x => x.FullFilmEditStatus)
         })
             rule.Must(WorkStatuses.All.Contains).WithMessage("Status must be Not Started, In Progress or Completed.");
@@ -295,7 +297,11 @@ public class SavePackageRequestValidator : AbstractValidator<SavePackageRequest>
     public SavePackageRequestValidator()
     {
         RuleFor(x => x.PackageName).NotEmpty().Length(2, 120);
-        RuleFor(x => x.BasePrice).Money();
+        RuleFor(x => x.PhotoPrice).MoneyOrNull();
+        RuleFor(x => x.VideoPrice).MoneyOrNull();
+        RuleFor(x => x.AlbumPrice).MoneyOrNull();
+        RuleFor(x => x).Must(x => x.PhotoPrice.HasValue || x.VideoPrice.HasValue || x.AlbumPrice.HasValue)
+            .WithMessage("Include at least one of Photo, Video or Album, with its price.");
         RuleFor(x => x.Inclusions).MaximumLength(1000);
     }
 }

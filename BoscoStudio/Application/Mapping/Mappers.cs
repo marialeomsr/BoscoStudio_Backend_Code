@@ -20,12 +20,12 @@ public static class Mappers
         new(e.ExpenseId, e.OrderId, e.Category, e.Description, e.Amount, e.ExpenseDate);
 
     public static DeliverableDto ToDto(this Deliverable d) =>
-        new(d.OrderId, d.RawBackupStatus, d.SelectionMode, d.SelectionStatus, d.PhotoEditStatus,
+        new(d.OrderId, d.SelectionMode, d.SelectionStatus, d.PhotoEditStatus,
             d.TeaserEditStatus, d.FullFilmEditStatus, d.CloudProvider, d.CloudLink, d.DeliveredOn);
 
     public static AlbumDto ToDto(this Album a, string? orderNumber = null, string? clientName = null) =>
         new(a.AlbumId, a.OrderId, orderNumber, clientName, a.AlbumType, a.SheetCount, a.AlbumStage,
-            NextAlbumStage(a.AlbumStage), a.PrintVendorName, a.PrintVendorContact, a.PrintCost,
+            NextAlbumStage(a.AlbumStage), a.PrintVendorName, a.PrintVendorContact, a.PrintCost, a.SellingPrice, a.PackageId,
             a.SentToPrintOn, a.ReceivedOn, a.HandedOverOn, a.Notes);
 
     public static string? NextAlbumStage(string current)
@@ -47,5 +47,8 @@ public static class Mappers
         o.Albums.OrderBy(a => a.AlbumId).Select(a => a.ToDto(o.OrderNumber, o.Client.FullName)).ToList(),
         OrderStatuses.All.Where(s => OrderStatuses.CanMove(o.OrderStatus, s)).ToList(),
         o.Documents.OrderBy(d => d.DocumentId).Select(d => new OrderDocumentRefDto(d.DocumentId, d.DocumentType, d.DocumentNumber)).ToList(),
-        o.TaxSplit, TaxSplits.Build(o.TaxPercent, o.TaxAmount ?? 0, o.TaxSplit, o.CgstPercent));
+        o.TaxSplit, TaxSplits.Build(o.TaxPercent, o.TaxAmount ?? 0, o.TaxSplit, o.CgstPercent),
+        o.CreatedBy, o.UpdatedAt, o.UpdatedBy,
+        o.AlbumsTotal, o.GrandTotal, o.AlbumCost,
+        o.IncludesPhoto, o.PhotoAmount, o.IncludesVideo, o.VideoAmount, o.IncludesAlbum, o.AlbumAmount);
 }

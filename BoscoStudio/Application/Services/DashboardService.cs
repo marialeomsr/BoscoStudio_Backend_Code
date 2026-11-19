@@ -30,7 +30,7 @@ public class DashboardService(PhotoStudioDbContext db, IOrderService orders) : I
         // 2. Pending balances: live orders that are past the quote stage and still owe money.
         var balances = await db.Orders.AsNoTracking()
             .Where(o => o.OrderStatus != OrderStatuses.Cancelled && o.OrderStatus != OrderStatuses.PreOrder)
-            .Select(o => (o.TotalAmount ?? 0) - o.Payments.Sum(p => p.Amount))
+            .Select(o => (o.TotalAmount ?? 0) + o.Albums.Sum(a => a.SellingPrice) - o.Payments.Sum(p => p.Amount))
             .Where(b => b > 0)
             .ToListAsync(ct);
 
@@ -44,7 +44,7 @@ public class DashboardService(PhotoStudioDbContext db, IOrderService orders) : I
                 .Select(o => new
                 {
                     o.OrderId, o.OrderNumber, o.Client.FullName, o.Client.Phone, o.Client.WhatsAppNo, o.EventDate, o.OrderStatus,
-                    Balance = (o.TotalAmount ?? 0) - o.Payments.Sum(p => p.Amount)
+                    Balance = (o.TotalAmount ?? 0) + o.Albums.Sum(a => a.SellingPrice) - o.Payments.Sum(p => p.Amount)
                 })
                 .Where(x => x.Balance > 0)
                 .OrderBy(x => x.EventDate)

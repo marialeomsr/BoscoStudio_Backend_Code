@@ -24,3 +24,12 @@ h2 { font-size: 16px; font-weight: 500; margin: 0 0 8px; }
 .preview { display: grid; grid-template-columns: 1fr auto; row-gap: 4px; margin: 0 0 16px; dt, dd { margin: 0; } dd { text-align: right; } }
 .strong { font-weight: 600; }
 .actions { display: flex; justify-content: flex-end; gap: 8px; padding-bottom: 16px; }
+
+// Photo / Video / Album: tick + price per part
+.parts { margin: 8px 0 12px; }
+.part { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.part mat-checkbox { flex: 0 0 120px; }
+.part mat-icon { vertical-align: middle; margin-right: 4px; }
+.part mat-form-field { flex: 1 1 180px; max-width: 280px; }
+.parts-total { margin: 4px 0 0; }
+.warn { color: var(--mat-sys-error); }

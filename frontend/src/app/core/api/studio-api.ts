@@ -7,7 +7,7 @@ import {
   PackageInfo, PaymentLedgerItem, UpdateOrderRequest, CreateExpenseRequest, CreatePaymentRequest, Dashboard, Expense,
   OrderDetail, OrderSummary, Payment, UpdateAlbumRequest, UpdateDeliverableRequest,
   CreateOwnerRequest, UpdateOwnerRequest, Branding, LoginResponse, OwnerInfo, OwnerRole, UpdateProfileRequest,
-  EventTypeInfo, SaveEventTypeRequest, SavePackageRequest, StudioSettings, UpdateDocumentRequest,
+  DateRangeReport, LoginAudit, EventTypeInfo, SaveEventTypeRequest, SavePackageRequest, StudioSettings, UpdateDocumentRequest,
 } from '../models/studio.models';
 
 /** One thin class per backend controller area, all in one file so a request can be traced in seconds. */
@@ -180,6 +180,22 @@ export class StudioApi {
   }
   createDocument(orderId: number, body: CreateDocumentRequest): Observable<DocumentDetail> {
     return this.http.post<DocumentDetail>(`${this.base}/orders/${orderId}/documents`, body);
+  }
+
+  // ----- Sign-in history (Admin) -----
+  loginAudits(filter: { from?: string; to?: string; username?: string; eventType?: string } = {}): Observable<LoginAudit[]> {
+    let params = new HttpParams();
+    for (const [key, value] of Object.entries(filter)) if (value) params = params.set(key, value);
+    return this.http.get<LoginAudit[]>(`${this.base}/audit/logins`, { params });
+  }
+
+  // ----- Reports -----
+  report(from: string, to: string): Observable<DateRangeReport> {
+    return this.http.get<DateRangeReport>(`${this.base}/reports`, { params: { from, to } });
+  }
+  /** Excel workbook for the range; a blob so the auth interceptor still adds the bearer token. */
+  reportExcel(from: string, to: string): Observable<Blob> {
+    return this.http.get(`${this.base}/reports/export`, { params: { from, to }, responseType: 'blob' });
   }
 
   // ----- Dashboard -----

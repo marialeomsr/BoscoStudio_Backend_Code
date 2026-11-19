@@ -15,6 +15,8 @@ export interface AlbumEditData {
   album: Album;
   /** Shown above the form, e.g. why the owner was sent here. */
   hint?: string;
+  /** The order's package already includes the Album part: its price is in the order total, so no separate price is asked. */
+  priceIncluded?: boolean;
 }
 
 /** Edit album type, sheets and print vendor details at any stage. Closes with the updated Album, or undefined if dismissed. */
@@ -29,7 +31,10 @@ export interface AlbumEditData {
         <div class="grid">
           <mat-form-field appearance="outline" class="full"><mat-label>Album type</mat-label><input matInput formControlName="albumType" /><mat-error auto></mat-error></mat-form-field>
           <mat-form-field appearance="outline"><mat-label>Sheets</mat-label><input matInput type="number" inputmode="numeric" formControlName="sheetCount" /><mat-error auto></mat-error></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>Print cost</mat-label><input matInput type="number" inputmode="decimal" formControlName="printCost" /><mat-error auto></mat-error></mat-form-field>
+          @if (!data.priceIncluded) {
+            <mat-form-field appearance="outline"><mat-label>Selling price (client pays)</mat-label><input matInput type="number" inputmode="decimal" formControlName="sellingPrice" /><mat-error auto></mat-error></mat-form-field>
+          }
+          <mat-form-field appearance="outline"><mat-label>Print cost (vendor)</mat-label><input matInput type="number" inputmode="decimal" formControlName="printCost" /><mat-error auto></mat-error></mat-form-field>
           <mat-form-field appearance="outline"><mat-label>Print vendor</mat-label><input matInput formControlName="printVendorName" /><mat-error auto></mat-error></mat-form-field>
           <mat-form-field appearance="outline"><mat-label>Vendor contact</mat-label><input matInput formControlName="printVendorContact" /><mat-error auto></mat-error></mat-form-field>
           <mat-form-field appearance="outline" class="full"><mat-label>Notes</mat-label><textarea matInput rows="2" formControlName="notes"></textarea><mat-error auto></mat-error></mat-form-field>
@@ -57,6 +62,7 @@ export class AlbumEditDialog {
   protected readonly form = inject(NonNullableFormBuilder).group({
     albumType: [this.data.album.albumType, [Validators.required, Validators.maxLength(60)]],
     sheetCount: [this.data.album.sheetCount, [Validators.required, intRange(1, 500)]],
+    sellingPrice: [this.data.album.sellingPrice as number | null, money],
     printCost: [this.data.album.printCost as number | null, money],
     printVendorName: [this.data.album.printVendorName ?? '', Validators.maxLength(120)],
     printVendorContact: [this.data.album.printVendorContact ?? '', [phoneOrEmail, Validators.maxLength(60)]],
@@ -68,6 +74,7 @@ export class AlbumEditDialog {
     this.saving.set(true);
     this.api.updateAlbum(this.data.album.albumId, {
       albumType: v.albumType, sheetCount: v.sheetCount, printCost: v.printCost,
+      sellingPrice: this.data.priceIncluded ? 0 : v.sellingPrice ?? 0, packageId: this.data.album.packageId,
       printVendorName: v.printVendorName.trim() || null, printVendorContact: v.printVendorContact.trim() || null,
       notes: v.notes.trim() || null,
     }).subscribe({

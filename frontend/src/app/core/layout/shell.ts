@@ -8,6 +8,7 @@ import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { map } from 'rxjs';
+import { AppFooter } from '../../shared/components/app-footer';
 import { AuthService } from '../auth/auth.service';
 
 interface NavItem { path: string; label: string; icon: string; }
@@ -15,7 +16,7 @@ interface NavItem { path: string; label: string; icon: string; }
 /** Desktop (>=960px): permanent sidebar. Mobile: top bar + fixed bottom navigation. */
 @Component({
   selector: 'app-shell',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, MatSidenavModule, MatToolbarModule, MatIconModule, MatMenuModule, MatButtonModule],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, AppFooter, MatSidenavModule, MatToolbarModule, MatIconModule, MatMenuModule, MatButtonModule],
   template: `
     <mat-toolbar class="topbar">
       <span class="brand">Bosco Studio</span>
@@ -37,8 +38,12 @@ interface NavItem { path: string; label: string; icon: string; }
       }
       <mat-sidenav-content class="content" [class.has-bottom-nav]="isMobile()">
         <router-outlet />
+        <!-- Phone: at the end of the page, above the bottom navigation. -->
+        @if (isMobile()) { <app-footer /> }
       </mat-sidenav-content>
     </mat-sidenav-container>
+    <!-- Desktop: always visible at the bottom of the screen. -->
+    @if (!isMobile()) { <app-footer class="desktop-footer" /> }
 
     @if (isMobile()) {
       <nav class="bottom-nav">
@@ -63,6 +68,7 @@ interface NavItem { path: string; label: string; icon: string; }
     .owner small { opacity: .7; margin-left: 4px; }
     @media (max-width: 599px) { .owner { display: none; } }
     .container { flex: 1; }
+    .desktop-footer { flex: none; border-top: 1px solid var(--mat-sys-outline-variant); background: var(--mat-sys-surface-container-low); }
     .sidebar { width: 220px; padding-top: 8px; }
     .side-link { display: flex; align-items: center; gap: 12px; padding: 12px 20px; color: inherit; text-decoration: none; }
     .side-link.active { background: color-mix(in srgb, var(--mat-sys-primary) 12%, transparent); font-weight: 500; }
@@ -92,6 +98,7 @@ export class Shell {
     { path: '/clients', label: 'Clients', icon: 'groups' },
     { path: '/payments', label: 'Payments', icon: 'payments' },
     { path: '/invoices', label: 'Invoices', icon: 'description' },
+    { path: '/reports', label: 'Reports', icon: 'assessment' },
     { path: '/settings', label: 'Settings', icon: 'settings' },
   ];
   /** Phone: first four in the bottom bar, the rest under "More". */

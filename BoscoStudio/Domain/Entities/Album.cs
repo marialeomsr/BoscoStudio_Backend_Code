@@ -29,6 +29,14 @@ public partial class Album
     [StringLength(60)]
     public string? PrintVendorContact { get; set; }
 
+    /// <summary>What the client pays for this album (revenue, tax included). Part of the order's total payable.</summary>
+    [Column(TypeName = "decimal(12, 2)")]
+    public decimal SellingPrice { get; set; }
+
+    /// <summary>The album package it was sold from (catalogue entry of type Album), if any.</summary>
+    public int? PackageId { get; set; }
+
+    /// <summary>What the print vendor charges the studio (cost of the album, not an order expense).</summary>
     [Column(TypeName = "decimal(12, 2)")]
     public decimal? PrintCost { get; set; }
 

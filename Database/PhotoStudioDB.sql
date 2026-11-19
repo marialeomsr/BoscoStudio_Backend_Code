@@ -30,6 +30,23 @@ CREATE TABLE dbo.OwnerAccounts (
 );
 GO
 
+-- Sign-in history (successful logins, failed attempts, logouts). No FK: history survives a deleted owner.
+IF OBJECT_ID(N'dbo.LoginAudits') IS NULL
+BEGIN
+    CREATE TABLE dbo.LoginAudits (
+        AuditId     BIGINT IDENTITY(1,1) CONSTRAINT PK_LoginAudits PRIMARY KEY,
+        OwnerId     INT           NULL,
+        Username    NVARCHAR(50)  NOT NULL,
+        EventType   NVARCHAR(12)  NOT NULL CONSTRAINT CK_LoginAudits_Event CHECK (EventType IN (N'Login', N'Logout', N'LoginFailed')),
+        OccurredAt  DATETIME2(0)  NOT NULL CONSTRAINT DF_LoginAudits_At DEFAULT SYSUTCDATETIME(),
+        IpAddress   NVARCHAR(45)  NULL,
+        UserAgent   NVARCHAR(300) NULL
+    );
+    CREATE INDEX IX_LoginAudits_OccurredAt ON dbo.LoginAudits (OccurredAt DESC) INCLUDE (Username, EventType);
+    CREATE INDEX IX_LoginAudits_OwnerId    ON dbo.LoginAudits (OwnerId, OccurredAt DESC);
+END
+GO
+
 IF OBJECT_ID(N'dbo.StudioSettings') IS NULL
 CREATE TABLE dbo.StudioSettings (
     StudioSettingsId   INT           NOT NULL CONSTRAINT PK_StudioSettings PRIMARY KEY
@@ -91,7 +108,13 @@ CREATE TABLE dbo.Packages (
     EventType    NVARCHAR(30)  NULL CONSTRAINT FK_Packages_EventTypes REFERENCES dbo.EventTypes(EventTypeName) ON UPDATE CASCADE,
     BasePrice    DECIMAL(12,2) NOT NULL CONSTRAINT CK_Packages_Price CHECK (BasePrice >= 0),
     Inclusions   NVARCHAR(1000) NULL,
-    IsActive     BIT           NOT NULL CONSTRAINT DF_Packages_IsActive DEFAULT 1
+    IsActive     BIT           NOT NULL CONSTRAINT DF_Packages_IsActive DEFAULT 1,
+    -- A package is a bundle of up to three parts, each with its own price. NULL = that part is not in the package.
+    -- BasePrice = the sum of the parts that are in it (kept by CatalogService).
+    PhotoPrice   DECIMAL(12,2) NULL,
+    VideoPrice   DECIMAL(12,2) NULL,
+    AlbumPrice   DECIMAL(12,2) NULL,
+    CONSTRAINT CK_Packages_Parts CHECK ((PhotoPrice IS NULL OR PhotoPrice >= 0) AND (VideoPrice IS NULL OR VideoPrice >= 0) AND (AlbumPrice IS NULL OR AlbumPrice >= 0))
 );
 GO
 
@@ -115,6 +138,13 @@ CREATE TABLE dbo.Orders (
     EventDate      DATE          NOT NULL,
     Venue          NVARCHAR(300) NULL,
     Notes          NVARCHAR(1000) NULL,
+    -- PackageAmount = the sum of the parts chosen for this order (Photo / Video / Album), kept by OrderService.
+    IncludesPhoto  BIT           NOT NULL CONSTRAINT DF_Orders_InclPhoto DEFAULT 1,
+    IncludesVideo  BIT           NOT NULL CONSTRAINT DF_Orders_InclVideo DEFAULT 0,
+    IncludesAlbum  BIT           NOT NULL CONSTRAINT DF_Orders_InclAlbum DEFAULT 0,
+    PhotoAmount    DECIMAL(12,2) NOT NULL CONSTRAINT DF_Orders_PhotoAmt DEFAULT 0,
+    VideoAmount    DECIMAL(12,2) NOT NULL CONSTRAINT DF_Orders_VideoAmt DEFAULT 0,
+    AlbumAmount    DECIMAL(12,2) NOT NULL CONSTRAINT DF_Orders_AlbumAmt DEFAULT 0,
     PackageAmount  DECIMAL(12,2) NOT NULL CONSTRAINT DF_Orders_PkgAmt  DEFAULT 0 CONSTRAINT CK_Orders_PkgAmt  CHECK (PackageAmount >= 0),
     DiscountAmount DECIMAL(12,2) NOT NULL CONSTRAINT DF_Orders_Disc    DEFAULT 0 CONSTRAINT CK_Orders_Disc    CHECK (DiscountAmount >= 0),
     TaxPercent     DECIMAL(5,2)  NOT NULL CONSTRAINT DF_Orders_TaxPct  DEFAULT 0 CONSTRAINT CK_Orders_TaxPct  CHECK (TaxPercent BETWEEN 0 AND 100),
@@ -128,6 +158,8 @@ CREATE TABLE dbo.Orders (
                           + ROUND((PackageAmount - DiscountAmount) * TaxPercent / 100.0, 2) AS DECIMAL(12,2)) PERSISTED,
     CreatedAt      DATETIME2(0)  NOT NULL CONSTRAINT DF_Orders_CreatedAt DEFAULT SYSUTCDATETIME(),
     UpdatedAt      DATETIME2(0)  NULL,
+    CreatedBy      NVARCHAR(50)  NULL,                      -- username of the owner who created / last changed the order
+    UpdatedBy      NVARCHAR(50)  NULL,
     CONSTRAINT CK_Orders_DiscountLimit CHECK (DiscountAmount <= PackageAmount)
 );
 CREATE INDEX IX_Orders_EventDate   ON dbo.Orders (EventDate)   INCLUDE (OrderStatus, ClientId);
@@ -196,8 +228,6 @@ CREATE TABLE dbo.Deliverables (
     DeliverableId       INT IDENTITY(1,1) CONSTRAINT PK_Deliverables PRIMARY KEY,
     OrderId             INT NOT NULL CONSTRAINT UQ_Deliverables_Order UNIQUE
                             CONSTRAINT FK_Deliverables_Orders REFERENCES dbo.Orders(OrderId) ON DELETE CASCADE,
-    RawBackupStatus     NVARCHAR(20) NOT NULL CONSTRAINT DF_Deliv_Raw   DEFAULT N'Not Started'
-        CONSTRAINT CK_Deliv_Raw   CHECK (RawBackupStatus   IN (N'Not Started',N'In Progress',N'Completed')),
     SelectionMode       NVARCHAR(20) NOT NULL CONSTRAINT DF_Deliv_SelMode DEFAULT N'Client Selection'
         CONSTRAINT CK_Deliv_SelMode CHECK (SelectionMode IN (N'Client Selection',N'Studio Selection')),
     SelectionStatus     NVARCHAR(20) NOT NULL CONSTRAINT DF_Deliv_Sel   DEFAULT N'Not Started'
@@ -228,7 +258,9 @@ CREATE TABLE dbo.Albums (
              N'Sent to Print Lab',N'Album Received',N'Handed Over to Client')),
     PrintVendorName    NVARCHAR(120) NULL,
     PrintVendorContact NVARCHAR(60)  NULL,
-    PrintCost          DECIMAL(12,2) NULL CONSTRAINT CK_Albums_Cost CHECK (PrintCost >= 0),
+    SellingPrice       DECIMAL(12,2) NOT NULL CONSTRAINT DF_Albums_SellingPrice DEFAULT 0 CONSTRAINT CK_Albums_SellingPrice CHECK (SellingPrice >= 0),  -- what the client pays (revenue, tax included)
+    PackageId          INT NULL CONSTRAINT FK_Albums_Packages REFERENCES dbo.Packages(PackageId),                                                     -- album package it was sold from
+    PrintCost          DECIMAL(12,2) NULL CONSTRAINT CK_Albums_Cost CHECK (PrintCost >= 0),                                                           -- what the print vendor charges us (cost)
     SentToPrintOn      DATE NULL,
     ReceivedOn         DATE NULL,
     HandedOverOn       DATE NULL,

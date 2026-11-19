@@ -40,6 +40,9 @@ public class AlbumService(PhotoStudioDbContext db) : IAlbumService
         if (order.OrderStatus == OrderStatuses.Cancelled)
             throw new BusinessRuleException("Cannot add an album to a cancelled order.");
 
+        // Albums can be added at any time (also after the order is Delivered): the client may only decide on an album later.
+        await EnsureAlbumPackageAsync(r.PackageId, ct);
+        EnsureNoDoublePricing(order, r.SellingPrice);
         var album = new Album { OrderId = orderId, AlbumStage = AlbumStages.Pipeline[0] };
         Apply(album, r);
         db.Albums.Add(album);
@@ -50,6 +53,9 @@ public class AlbumService(PhotoStudioDbContext db) : IAlbumService
     public async Task<AlbumDto> UpdateAsync(int albumId, UpdateAlbumRequest r, CancellationToken ct)
     {
         var album = await FindAsync(albumId, ct);
+        await EnsureAlbumPackageAsync(r.PackageId, ct);
+        EnsureNoDoublePricing(album.Order, r.SellingPrice);
+        await EnsureTotalStillCoversPaymentsAsync(album.OrderId, r.SellingPrice - album.SellingPrice, ct);
         Apply(album, r);
         album.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
@@ -92,6 +98,7 @@ public class AlbumService(PhotoStudioDbContext db) : IAlbumService
         var album = await FindAsync(albumId, ct);
         if (album.AlbumStage is AlbumStages.SentToPrintLab or AlbumStages.AlbumReceived or AlbumStages.HandedOver)
             throw new BusinessRuleException("This album has already gone to print and cannot be deleted.");
+        await EnsureTotalStillCoversPaymentsAsync(album.OrderId, -album.SellingPrice, ct);
         db.Albums.Remove(album);
         await db.SaveChangesAsync(ct);
     }
@@ -101,9 +108,39 @@ public class AlbumService(PhotoStudioDbContext db) : IAlbumService
             .FirstOrDefaultAsync(a => a.AlbumId == albumId, ct)
         ?? throw new NotFoundException("Album", albumId);
 
+    /// <summary>The package, when given, must come from the album catalogue (not a photoshoot package).</summary>
+    private async Task EnsureAlbumPackageAsync(int? packageId, CancellationToken ct)
+    {
+        if (packageId is null) return;
+        var hasAlbum = await db.Packages.AsNoTracking().Where(p => p.PackageId == packageId).Select(p => (bool?)(p.AlbumPrice != null)).FirstOrDefaultAsync(ct)
+            ?? throw new NotFoundException("Package", packageId);
+        if (!hasAlbum)
+            throw new BusinessRuleException("That package has no Album part. Choose a package that includes an album.");
+    }
+
+    /// <summary>When the order's package already includes the Album part, its price is in the order total: an extra price would charge twice.</summary>
+    private static void EnsureNoDoublePricing(Order order, decimal sellingPrice)
+    {
+        if (order.IncludesAlbum && sellingPrice > 0)
+            throw new BusinessRuleException("The album is already included in this order's package price. Leave the selling price at 0, or untick Album on the order.");
+    }
+
+    /// <summary>Lowering or removing an album price must not leave the order's total below what the client already paid.</summary>
+    private async Task EnsureTotalStillCoversPaymentsAsync(int orderId, decimal change, CancellationToken ct)
+    {
+        if (change >= 0) return;
+        var t = await db.Orders.AsNoTracking().Where(o => o.OrderId == orderId)
+            .Select(o => new { Shoot = o.TotalAmount ?? 0, Albums = o.Albums.Sum(a => a.SellingPrice), Paid = o.Payments.Sum(p => p.Amount) })
+            .FirstAsync(ct);
+        if (t.Shoot + t.Albums + change < t.Paid)
+            throw new BusinessRuleException($"The order total would drop to {t.Shoot + t.Albums + change:N2}, below the {t.Paid:N2} already received.");
+    }
+
     private static void Apply(Album album, CreateAlbumRequest r)
     {
         album.AlbumType = r.AlbumType.Trim();
+        album.SellingPrice = r.SellingPrice;
+        album.PackageId = r.PackageId;
         album.SheetCount = r.SheetCount;
         album.PrintVendorName = r.PrintVendorName;
         album.PrintVendorContact = r.PrintVendorContact;

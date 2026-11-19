@@ -15,9 +15,6 @@ public partial class Deliverable
     public int OrderId { get; set; }
 
     [StringLength(20)]
-    public string RawBackupStatus { get; set; } = null!;
-
-    [StringLength(20)]
     public string SelectionMode { get; set; } = null!;
 
     [StringLength(20)]

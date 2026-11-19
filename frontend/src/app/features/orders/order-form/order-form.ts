@@ -3,6 +3,7 @@ import { Component, computed, inject, input, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormArray, FormControl, FormGroup, NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
@@ -33,7 +34,7 @@ type SlotGroup = FormGroup<{
 /** Create (orders/new?date=yyyy-MM-dd) and edit (orders/:id/edit) in one form. */
 @Component({
   selector: 'app-order-form',
-  imports: [ReactiveFormsModule, RouterLink, InrPipe, InputFilter, AutoError, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule],
+  imports: [ReactiveFormsModule, RouterLink, InrPipe, InputFilter, AutoError, MatButtonModule, MatCheckboxModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule],
   templateUrl: './order-form.html',
   styleUrl: './order-form.scss',
 })
@@ -66,7 +67,15 @@ export class OrderForm {
     packageId: this.fb.control<number | null>(null),
     venue: this.fb.control('', Validators.maxLength(300)),
     notes: this.fb.control('', Validators.maxLength(1000)),
-    packageAmount: this.fb.control<number | null>(null, [Validators.required, money]),
+    // The order is priced by its parts: tick what the client buys, each part has its own amount.
+    includePhoto: this.fb.control(true),
+    photoAmount: this.fb.control<number | null>(null, [Validators.required, money]),
+    includeVideo: this.fb.control(false),
+    videoAmount: this.fb.control<number | null>({ value: null, disabled: true }, [Validators.required, money]),
+    includeAlbum: this.fb.control(false),
+    albumAmount: this.fb.control<number | null>({ value: null, disabled: true }, [Validators.required, money]),
+    /** Read-only sum of the ticked parts (kept up to date by syncParts); the discount is checked against it. */
+    packageAmount: this.fb.control({ value: 0, disabled: true }),
     discountAmount: this.fb.control(0, [money, notMoreThan('packageAmount', 'package amount')]),
     taxPercent: this.fb.control<number | null>(0, percent),
     taxSplit: this.fb.control<'Single' | 'CGST+SGST'>('Single'),
@@ -107,6 +116,29 @@ export class OrderForm {
   }
 
   get slots(): FormArray<SlotGroup> { return this.form.controls.slots; }
+
+  constructor() {
+    // A part's amount is editable (and required) only while its box is ticked; every change re-adds the ticked parts.
+    const c = this.form.controls;
+    for (const [box, amount] of [[c.includePhoto, c.photoAmount], [c.includeVideo, c.videoAmount], [c.includeAlbum, c.albumAmount]] as const) {
+      box.valueChanges.subscribe((on) => { if (on) amount.enable({ emitEvent: false }); else amount.disable({ emitEvent: false }); this.syncParts(); });
+      amount.valueChanges.subscribe(() => this.syncParts());
+    }
+    this.syncParts();
+  }
+
+  /** "Photo + Video" label for the package list. */
+  protected partsOf(p: PackageInfo): string {
+    return [p.photoPrice !== null && 'Photo', p.videoPrice !== null && 'Video', p.albumPrice !== null && 'Album'].filter(Boolean).join(' + ');
+  }
+
+  /** package amount = sum of the ticked parts. */
+  private syncParts(): void {
+    const v = this.form.getRawValue();
+    const sum = (v.includePhoto ? v.photoAmount ?? 0 : 0) + (v.includeVideo ? v.videoAmount ?? 0 : 0) + (v.includeAlbum ? v.albumAmount ?? 0 : 0);
+    this.form.controls.packageAmount.setValue(sum, { emitEvent: false });
+    this.form.controls.discountAmount.updateValueAndValidity({ emitEvent: false });
+  }
 
   ngOnInit(): void {
     this.api.packages().subscribe((p) => this.packages.set(p));
@@ -156,7 +188,14 @@ export class OrderForm {
 
   protected onPackageChange(id: number | null): void {
     const pkg = this.packages().find((p) => p.packageId === id);
-    if (pkg) this.form.patchValue({ packageAmount: pkg.basePrice });
+    if (!pkg) return;
+    // Tick the parts the package contains (with its prices); the owner can untick or re-price them for this order.
+    this.form.patchValue({
+      includePhoto: pkg.photoPrice !== null, photoAmount: pkg.photoPrice,
+      includeVideo: pkg.videoPrice !== null, videoAmount: pkg.videoPrice,
+      includeAlbum: pkg.albumPrice !== null, albumAmount: pkg.albumPrice,
+    });
+    this.syncParts();
   }
 
   protected toggleNewClient(): void {
@@ -175,11 +214,15 @@ export class OrderForm {
   private fillFrom(o: OrderDetail): void {
     this.form.patchValue({
       clientId: o.client.clientId, eventType: o.eventType, packageId: o.packageId, venue: o.venue ?? '', notes: o.notes ?? '',
-      packageAmount: o.packageAmount, discountAmount: o.discountAmount, taxPercent: o.taxPercent, taxSplit: o.taxSplit,
+      includePhoto: o.includesPhoto, photoAmount: o.includesPhoto ? o.photoAmount : null,
+      includeVideo: o.includesVideo, videoAmount: o.includesVideo ? o.videoAmount : null,
+      includeAlbum: o.includesAlbum, albumAmount: o.includesAlbum ? o.albumAmount : null,
+      discountAmount: o.discountAmount, taxPercent: o.taxPercent, taxSplit: o.taxSplit,
       ...ratesFromLines(o.taxLines, o.taxPercent),
     });
     if (!this.eventTypes().some((t) => t.eventTypeName === o.eventType))   // inactive type already used by this order
       this.eventTypes.update((list) => [...list, { eventTypeId: 0, eventTypeName: o.eventType, sortOrder: 99, isActive: false, orderCount: 0, packageCount: 0 }]);
+    this.syncParts();
     this.slots.clear();
     o.slots.forEach((s) => this.addSlot(s.eventDate, s.startTime.slice(0, 5), s.endTime.slice(0, 5), s.title ?? ''));
   }
@@ -200,7 +243,10 @@ export class OrderForm {
     }));
     const base: UpdateOrderRequest = {
       packageId: v.packageId, eventType: v.eventType, venue: v.venue || null, notes: v.notes || null,
-      packageAmount: v.packageAmount, discountAmount: v.discountAmount, taxPercent: totalTaxPercent(v), taxSplit: v.taxSplit,
+      includePhoto: v.includePhoto, photoAmount: v.includePhoto ? v.photoAmount : null,
+      includeVideo: v.includeVideo, videoAmount: v.includeVideo ? v.videoAmount : null,
+      includeAlbum: v.includeAlbum, albumAmount: v.includeAlbum ? v.albumAmount : null,
+      discountAmount: v.discountAmount, taxPercent: totalTaxPercent(v), taxSplit: v.taxSplit,
       cgstPercent: v.taxSplit === 'CGST+SGST' ? v.cgstPercent : null, slots, allowOverlap,
     };
 

@@ -9,6 +9,7 @@ import { StudioApi } from '../../core/api/studio-api';
 import { AuthService } from '../../core/auth/auth.service';
 import { LoginRequest } from '../../core/models/studio.models';
 import { describeError } from '../../shared/api-error';
+import { AppFooter } from '../../shared/components/app-footer';
 
 /**
  * Sign-in. Desktop: brand panel on the left, form on the right. Phone: brand band on top, form card below.
@@ -16,7 +17,7 @@ import { describeError } from '../../shared/api-error';
  */
 @Component({
   selector: 'app-login',
-  imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule],
+  imports: [ReactiveFormsModule, AppFooter, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule],
   template: `
     <main class="screen">
       <section class="brand">
@@ -60,10 +61,11 @@ import { describeError } from '../../shared/api-error';
         </form>
       </section>
     </main>
+    <app-footer />
   `,
   styles: `
-    :host { display: block; }
-    .screen { min-height: 100dvh; display: grid; grid-template-columns: 1fr; background: #f4f6fb; }
+    :host { display: flex; flex-direction: column; min-height: 100dvh; background: #f4f6fb; }
+    .screen { flex: 1; display: grid; grid-template-columns: 1fr; background: #f4f6fb; }
 
     /* ---- brand ---- */
     .brand {

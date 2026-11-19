@@ -19,11 +19,15 @@ builder.Services.AddDbContext<PhotoStudioDbContext>(o =>
     o.UseSqlServer(builder.Configuration.GetConnectionString("PhotoStudioDb")));
 
 // ---------- Application services ----------
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<BoscoStudio.Application.Common.ICurrentUser, BoscoStudio.Application.Common.CurrentUser>();
+builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<DocumentNumberGenerator>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IAlbumService, AlbumService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
+builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<IDocumentService, DocumentService>();
 builder.Services.AddScoped<ILookupService, LookupService>();
 builder.Services.AddScoped<ICatalogService, CatalogService>();

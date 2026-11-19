@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { Component, inject, input, numberAttribute, signal } from '@angular/core';
+import { Component, computed, inject, input, numberAttribute, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormArray, FormControl, FormGroup, NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { map, startWith } from 'rxjs';
@@ -149,23 +149,29 @@ type LineGroup = FormGroup<{
           <dt>Subtotal</dt><dd>{{ d.subtotal | inr }}</dd>
           @if (d.discountAmount > 0) { <dt>Discount</dt><dd>− {{ d.discountAmount | inr }}</dd> }
           @for (t of d.taxLines; track t.label) { <dt>{{ t.label }} ({{ t.percent }}%)</dt><dd>{{ t.amount | inr }}</dd> }
-          <dt class="strong">Total</dt><dd class="strong">{{ d.total | inr }}</dd>
-          @if (d.documentType === 'Invoice') {
+          <dt class="strong">{{ d.albumsTotal > 0 ? 'Photoshoot total' : 'Total' }}</dt><dd class="strong">{{ d.total | inr }}</dd>
+          @if (d.albumsTotal > 0) {
+            @for (a of d.albumLines; track $index) { <dt>{{ a.description }}</dt><dd>{{ a.lineTotal | inr }}</dd> }
+            <dt class="strong">Grand total</dt><dd class="strong">{{ d.grandTotal | inr }}</dd>
+          }
+          @if (d.documentType === 'Invoice' || d.payments.length) {
             <dt>Paid</dt><dd>{{ d.totalPaid | inr }}</dd>
             <dt class="strong">Balance due</dt><dd class="strong">{{ d.balanceDue | inr }}</dd>
           }
         </dl>
 
-        @if (d.documentType === 'Invoice' && d.payments.length) {
-          <section>
+        @if (paymentRows().length) {
+          <!-- Visible on screen only: left out of the printed / PDF copy. -->
+          <section class="no-print">
             <h3>Payment history</h3>
             <table class="lines">
-              <thead><tr><th>Date</th><th>Type</th><th>Mode</th><th>Ref</th><th class="num">Amount</th></tr></thead>
+              <thead><tr><th>Date</th><th>Type</th><th>Mode</th><th>Ref</th><th class="num">Paid</th><th class="num">Balance after</th></tr></thead>
               <tbody>
-                @for (p of d.payments; track p.paymentId) {
-                  <tr><td>{{ p.paymentDate | date: 'd MMM yyyy' }}</td><td>{{ p.paymentType }}</td><td>{{ p.paymentMode }}</td><td>{{ p.transactionRef || '—' }}</td><td class="num">{{ p.amount | inr }}</td></tr>
+                @for (p of paymentRows(); track p.paymentId) {
+                  <tr><td>{{ p.paymentDate | date: 'd MMM yyyy' }}</td><td>{{ p.paymentType }}</td><td>{{ p.paymentMode }}</td><td>{{ p.transactionRef || '—' }}</td><td class="num">{{ p.amount | inr }}</td><td class="num">{{ p.balanceAfter | inr }}</td></tr>
                 }
               </tbody>
+              <tfoot><tr><td colspan="4"><strong>Total paid</strong></td><td class="num"><strong>{{ d.totalPaid | inr }}</strong></td><td class="num"><strong>{{ d.balanceDue | inr }}</strong></td></tr></tfoot>
             </table>
           </section>
         }
@@ -222,6 +228,12 @@ export class InvoiceView {
 
   private readonly snack = inject(MatSnackBar);
   protected readonly doc = signal<DocumentDetail | null>(null);
+  /** The order's payments in date order, each with what was still owed right after it (grand total − paid so far). */
+  protected readonly paymentRows = computed(() => {
+    const d = this.doc();
+    let paid = 0;
+    return (d?.payments ?? []).map((p) => ({ ...p, balanceAfter: d!.grandTotal - (paid += p.amount) }));
+  });
   protected readonly error = signal('');
   protected readonly editing = signal(false);
   protected readonly saving = signal(false);

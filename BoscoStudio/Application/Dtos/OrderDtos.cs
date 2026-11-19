@@ -29,10 +29,13 @@ public record OrderDetailDto(
     IReadOnlyList<AlbumDto> Albums,
     IReadOnlyList<string> AllowedNextStatuses,
     IReadOnlyList<OrderDocumentRefDto> Documents,
-    string TaxSplit, IReadOnlyList<TaxLineDto> TaxLines);
+    string TaxSplit, IReadOnlyList<TaxLineDto> TaxLines,
+    string? CreatedBy, DateTime? UpdatedAt, string? UpdatedBy,
+    decimal AlbumsTotal, decimal GrandTotal, decimal AlbumCost,
+    bool IncludesPhoto, decimal PhotoAmount, bool IncludesVideo, decimal VideoAmount, bool IncludesAlbum, decimal AlbumAmount);
 
 public record DeliverableDto(
-    int OrderId, string RawBackupStatus, string SelectionMode, string SelectionStatus, string PhotoEditStatus,
+    int OrderId, string SelectionMode, string SelectionStatus, string PhotoEditStatus,
     string TeaserEditStatus, string FullFilmEditStatus, string? CloudProvider, string? CloudLink, DateOnly? DeliveredOn);
 
 // ---------- Requests ----------
@@ -62,8 +65,15 @@ public class UpdateOrderRequest
     public string EventType { get; set; } = "";
     public string? Venue { get; set; }
     public string? Notes { get; set; }
-    /// <summary>Null = take the selected package's base price.</summary>
-    public decimal? PackageAmount { get; set; }
+    // The order is priced by its parts. Tick what the client is buying; each ticked part has an amount.
+    // A null amount = the selected package's price for that part (0 when there is no package / the package lacks it).
+    // The order's package amount is the sum of the ticked parts.
+    public bool IncludePhoto { get; set; } = true;
+    public decimal? PhotoAmount { get; set; }
+    public bool IncludeVideo { get; set; }
+    public decimal? VideoAmount { get; set; }
+    public bool IncludeAlbum { get; set; }
+    public decimal? AlbumAmount { get; set; }
     public decimal DiscountAmount { get; set; }
     /// <summary>Null = studio default tax %.</summary>
     public decimal? TaxPercent { get; set; }
@@ -92,7 +102,6 @@ public class ChangeOrderStatusRequest
 
 public class UpdateDeliverableRequest
 {
-    public string RawBackupStatus { get; set; } = "Not Started";
     public string SelectionMode { get; set; } = "Client Selection";
     public string SelectionStatus { get; set; } = "Not Started";
     public string PhotoEditStatus { get; set; } = "Not Started";

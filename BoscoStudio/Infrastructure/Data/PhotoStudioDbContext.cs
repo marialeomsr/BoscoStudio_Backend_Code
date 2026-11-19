@@ -28,6 +28,8 @@ public partial class PhotoStudioDbContext : DbContext
 
     public virtual DbSet<Expense> Expenses { get; set; }
 
+    public virtual DbSet<LoginAudit> LoginAudits { get; set; }
+
     public virtual DbSet<Order> Orders { get; set; }
 
     public virtual DbSet<OrderEventSlot> OrderEventSlots { get; set; }
@@ -45,6 +47,7 @@ public partial class PhotoStudioDbContext : DbContext
         modelBuilder.Entity<Album>(entity =>
         {
             entity.Property(e => e.AlbumStage).HasDefaultValue("Photo Selection Pending");
+            entity.Property(e => e.SellingPrice).HasDefaultValue(0m);
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
 
             entity.HasOne(d => d.Order).WithMany(p => p.Albums).HasConstraintName("FK_Albums_Orders");
@@ -59,7 +62,6 @@ public partial class PhotoStudioDbContext : DbContext
         {
             entity.Property(e => e.FullFilmEditStatus).HasDefaultValue("Not Started");
             entity.Property(e => e.PhotoEditStatus).HasDefaultValue("Not Started");
-            entity.Property(e => e.RawBackupStatus).HasDefaultValue("Not Started");
             entity.Property(e => e.SelectionMode).HasDefaultValue("Client Selection");
             entity.Property(e => e.SelectionStatus).HasDefaultValue("Not Started");
             entity.Property(e => e.TeaserEditStatus).HasDefaultValue("Not Started");
@@ -98,6 +100,11 @@ public partial class PhotoStudioDbContext : DbContext
             entity.HasOne(d => d.Order).WithMany(p => p.Expenses)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Expenses_Orders");
+        });
+
+        modelBuilder.Entity<LoginAudit>(entity =>
+        {
+            entity.Property(e => e.OccurredAt).HasDefaultValueSql("(sysutcdatetime())");
         });
 
         modelBuilder.Entity<Order>(entity =>

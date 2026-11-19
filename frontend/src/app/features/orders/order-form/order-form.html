@@ -41,7 +41,7 @@
         <mat-form-field appearance="outline"><mat-label>Package</mat-label>
           <mat-select formControlName="packageId" (selectionChange)="onPackageChange($event.value)">
             <mat-option [value]="null">Custom (no package)</mat-option>
-            @for (p of filteredPackages(); track p.packageId) { <mat-option [value]="p.packageId">{{ p.packageName }} ({{ p.basePrice | inr }})</mat-option> }
+            @for (p of filteredPackages(); track p.packageId) { <mat-option [value]="p.packageId">{{ p.packageName }} · {{ partsOf(p) }} ({{ p.basePrice | inr }})</mat-option> }
           </mat-select>
         <mat-error auto></mat-error></mat-form-field>
         <mat-form-field appearance="outline" class="full"><mat-label>Venue / location</mat-label><input matInput formControlName="venue" /><mat-error auto></mat-error></mat-form-field>
@@ -80,8 +80,24 @@
     <!-- ===== Pricing ===== -->
     <section class="panel amber">>
       <h2>Pricing</h2>
+      <p class="hint">Tick what the client is buying. Each part has its own price (filled in from the package; change it for this order if needed). Album takes no calendar slot.</p>
+      <div class="parts">
+        <div class="part">
+          <mat-checkbox formControlName="includePhoto"><mat-icon>photo_camera</mat-icon> Photo</mat-checkbox>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Photo price</mat-label><input matInput type="number" inputmode="decimal" formControlName="photoAmount" /><mat-error auto></mat-error></mat-form-field>
+        </div>
+        <div class="part">
+          <mat-checkbox formControlName="includeVideo"><mat-icon>videocam</mat-icon> Video</mat-checkbox>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Video price</mat-label><input matInput type="number" inputmode="decimal" formControlName="videoAmount" /><mat-error auto></mat-error></mat-form-field>
+        </div>
+        <div class="part">
+          <mat-checkbox formControlName="includeAlbum"><mat-icon>photo_album</mat-icon> Album</mat-checkbox>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Album price</mat-label><input matInput type="number" inputmode="decimal" formControlName="albumAmount" /><mat-error auto></mat-error></mat-form-field>
+        </div>
+        <p class="parts-total">Package total <strong>{{ form.controls.packageAmount.value | inr }}</strong>
+          @if (!form.controls.includePhoto.value && !form.controls.includeVideo.value && !form.controls.includeAlbum.value) { <span class="warn"> · tick at least one part</span> }</p>
+      </div>
       <div class="grid3">
-        <mat-form-field appearance="outline"><mat-label>Package amount</mat-label><input matInput type="number" inputmode="decimal" formControlName="packageAmount" /><mat-error auto></mat-error></mat-form-field>
         <mat-form-field appearance="outline"><mat-label>Discount</mat-label><input matInput type="number" inputmode="decimal" formControlName="discountAmount" /><mat-error auto></mat-error></mat-form-field>
         <mat-form-field appearance="outline"><mat-label>Show tax as</mat-label>
           <mat-select formControlName="taxSplit" (selectionChange)="onTaxSplitChange()"><mat-option value="Single">One tax line</mat-option><mat-option value="CGST+SGST">CGST + SGST (separate rates)</mat-option></mat-select>

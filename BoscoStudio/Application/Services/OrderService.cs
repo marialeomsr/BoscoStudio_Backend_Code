@@ -19,7 +19,7 @@ public interface IOrderService
     Task DeleteAsync(int orderId, CancellationToken ct);
 }
 
-public class OrderService(PhotoStudioDbContext db, DocumentNumberGenerator numbers) : IOrderService
+public class OrderService(PhotoStudioDbContext db, DocumentNumberGenerator numbers, ICurrentUser currentUser) : IOrderService
 {
     // ---------- Queries ----------
 
@@ -38,9 +38,9 @@ public class OrderService(PhotoStudioDbContext db, DocumentNumberGenerator numbe
             .OrderBy(o => o.EventDate)
             .Select(o => new OrderSummaryDto(
                 o.OrderId, o.OrderNumber, o.Client.FullName, o.Client.Phone, o.EventType, o.OrderStatus,
-                o.EventDate, o.Venue, o.TotalAmount ?? 0,
+                o.EventDate, o.Venue, (o.TotalAmount ?? 0) + o.Albums.Sum(a => a.SellingPrice),   // photoshoot + albums
                 o.Payments.Sum(p => p.Amount),
-                (o.TotalAmount ?? 0) - o.Payments.Sum(p => p.Amount)))
+                (o.TotalAmount ?? 0) + o.Albums.Sum(a => a.SellingPrice) - o.Payments.Sum(p => p.Amount)))
             .ToListAsync(ct);
     }
 
@@ -70,7 +70,8 @@ public class OrderService(PhotoStudioDbContext db, DocumentNumberGenerator numbe
         {
             OrderNumber = await numbers.NextAsync("ORD", ct),
             Client = client,
-            OrderStatus = request.InitialStatus
+            OrderStatus = request.InitialStatus,
+            CreatedBy = currentUser.Username
         };
         await ApplyEditableFieldsAsync(order, request, ct);
 
@@ -87,18 +88,22 @@ public class OrderService(PhotoStudioDbContext db, DocumentNumberGenerator numbe
 
         await EnsureNoDoubleBookingAsync(request.Slots, orderId, request.AllowOverlap, ct);
 
+        decimal previousAmount = order.PackageAmount;
         db.OrderEventSlots.RemoveRange(order.OrderEventSlots);   // slots are replaced as a set
         order.OrderEventSlots.Clear();
         await ApplyEditableFieldsAsync(order, request, ct);
-        order.UpdatedAt = DateTime.UtcNow;
+        Touch(order);
 
-        // Quotation / invoice with a single item follow the new price. Documents with several custom items keep
-        // their items (the document view warns when they no longer add up to the order amount).
-        foreach (var d in order.Documents.Where(d => d.DocumentLines.Count == 1))
+        // Quotations / invoices still showing the order's own items (their total equals the old package amount) follow the
+        // new parts and prices. A document the owner customised keeps its items (the document view warns when they
+        // no longer add up to the order amount).
+        foreach (var d in order.Documents.Where(d => d.DocumentLines.Count > 0
+                     && Math.Round(d.DocumentLines.Sum(l => l.Quantity * l.UnitPrice), 2) == previousAmount))
         {
-            var line = d.DocumentLines.First();
-            line.Quantity = 1;
-            line.UnitPrice = order.PackageAmount;
+            db.DocumentLines.RemoveRange(d.DocumentLines);
+            d.DocumentLines.Clear();
+            foreach (var (description, amount) in OrderPricing.Lines(order))
+                d.DocumentLines.Add(new DocumentLine { Description = description, Quantity = 1, UnitPrice = amount });
         }
 
         await db.SaveChangesAsync(ct);
@@ -119,7 +124,7 @@ public class OrderService(PhotoStudioDbContext db, DocumentNumberGenerator numbe
                 orderId, allowOverlap: false, ct);
 
         order.OrderStatus = newStatus;
-        order.UpdatedAt = DateTime.UtcNow;
+        Touch(order);
 
         // The post-production checklist starts once the shoot is booked.
         if (newStatus is OrderStatuses.Confirmed or OrderStatuses.ShootCompleted or OrderStatuses.InPostProduction
@@ -135,7 +140,6 @@ public class OrderService(PhotoStudioDbContext db, DocumentNumberGenerator numbe
         var order = await LoadOrderAsync(orderId, ct);
         var d = order.Deliverable ??= new Deliverable();
 
-        d.RawBackupStatus = r.RawBackupStatus;
         d.SelectionMode = r.SelectionMode;
         d.SelectionStatus = r.SelectionStatus;
         d.PhotoEditStatus = r.PhotoEditStatus;
@@ -145,6 +149,7 @@ public class OrderService(PhotoStudioDbContext db, DocumentNumberGenerator numbe
         d.CloudLink = r.CloudLink;
         d.DeliveredOn = r.DeliveredOn;
         d.UpdatedAt = DateTime.UtcNow;
+        Touch(order);
 
         await db.SaveChangesAsync(ct);
         return await GetDetailAsync(orderId, ct);
@@ -168,6 +173,13 @@ public class OrderService(PhotoStudioDbContext db, DocumentNumberGenerator numbe
         await db.SaveChangesAsync(ct);
     }
     // ---------- Helpers ----------
+
+    /// <summary>Marks the order as changed now, by the signed-in owner.</summary>
+    private void Touch(Order order)
+    {
+        order.UpdatedAt = DateTime.UtcNow;
+        order.UpdatedBy = currentUser.Username;
+    }
 
     private async Task<Order> LoadOrderAsync(int orderId, CancellationToken ct) =>
         await db.Orders
@@ -198,12 +210,17 @@ public class OrderService(PhotoStudioDbContext db, DocumentNumberGenerator numbe
             throw new BusinessRuleException($"Event type '{r.EventType}' is inactive.");
         if (package?.EventType is not null && package.EventType != r.EventType)
             throw new BusinessRuleException($"Package '{package.PackageName}' belongs to '{package.EventType}', not '{r.EventType}'.");
+        if (!r.IncludePhoto && !r.IncludeVideo && !r.IncludeAlbum)
+            throw new BusinessRuleException("Tick at least one of Photo, Video or Album.");
 
         order.PackageId = r.PackageId;
+        order.Package = package;
         order.EventType = r.EventType;
         order.Venue = r.Venue;
         order.Notes = r.Notes;
-        order.PackageAmount = r.PackageAmount ?? package?.BasePrice ?? 0;
+        OrderPricing.Apply(order, package, r.IncludePhoto, r.PhotoAmount, r.IncludeVideo, r.VideoAmount, r.IncludeAlbum, r.AlbumAmount);
+        if (r.DiscountAmount > order.PackageAmount)
+            throw new BusinessRuleException($"The discount {r.DiscountAmount:N2} is higher than the package amount {order.PackageAmount:N2}.");
         order.DiscountAmount = r.DiscountAmount;
         order.TaxPercent = r.TaxPercent ?? (await db.StudioSettings.FirstOrDefaultAsync(ct))?.DefaultTaxPercent ?? 0;
         order.TaxSplit = r.TaxSplit;

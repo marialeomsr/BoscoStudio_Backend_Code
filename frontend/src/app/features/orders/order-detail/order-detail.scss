@@ -24,6 +24,7 @@ ul.plain { list-style: none; margin: 0; padding: 0; }
 .section-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
 
 // ---- Money summary ----
+.hint { font-size: 12px; margin: 0; }
 .money { display: grid; grid-template-columns: 1fr auto; row-gap: 6px; margin: 0 0 12px; dd { margin: 0; text-align: right; } dt { margin: 0; } }
 .bar { height: 8px; border-radius: 4px; background: color-mix(in srgb, var(--accent) 15%, white); overflow: hidden; span { display: block; height: 100%; background: var(--accent); } }
 
@@ -63,3 +64,8 @@ ul.plain { list-style: none; margin: 0; padding: 0; }
   .stages .dot { position: relative; z-index: 1; background: var(--mat-sys-surface-container-low); }
   .stages .done .dot { background: #2e7d32; }
 }
+
+// Order stage tracker (reuses the album .stages look)
+.order-stage .stages { margin: 4px 0 12px; }
+.order-stage .actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; align-items: center; }
+.order-stage { margin-bottom: 16px; }

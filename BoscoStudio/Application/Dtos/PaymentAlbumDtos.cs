@@ -31,7 +31,7 @@ public class CreateExpenseRequest
 public record AlbumDto(
     int AlbumId, int OrderId, string? OrderNumber, string? ClientName,
     string AlbumType, int SheetCount, string AlbumStage, string? NextStage,
-    string? PrintVendorName, string? PrintVendorContact, decimal? PrintCost,
+    string? PrintVendorName, string? PrintVendorContact, decimal? PrintCost, decimal SellingPrice, int? PackageId,
     DateOnly? SentToPrintOn, DateOnly? ReceivedOn, DateOnly? HandedOverOn, string? Notes);
 
 public class CreateAlbumRequest
@@ -40,7 +40,12 @@ public class CreateAlbumRequest
     public int SheetCount { get; set; }
     public string? PrintVendorName { get; set; }
     public string? PrintVendorContact { get; set; }
+    /// <summary>What the print vendor charges the studio (a cost).</summary>
     public decimal? PrintCost { get; set; }
+    /// <summary>What the client pays for the album (revenue, tax included). Added to the order's total payable.</summary>
+    public decimal SellingPrice { get; set; }
+    /// <summary>Optional album package (catalogue entry of type Album) the album was sold from.</summary>
+    public int? PackageId { get; set; }
     public string? Notes { get; set; }
 }
 

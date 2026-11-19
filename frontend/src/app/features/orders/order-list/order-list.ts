@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { Component, inject } from '@angular/core';
+import { Component, computed, inject, linkedSignal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -11,6 +11,7 @@ import { RouterLink } from '@angular/router';
 import { combineLatest, debounceTime, startWith, switchMap } from 'rxjs';
 import { StudioApi } from '../../../core/api/studio-api';
 import { ORDER_STATUSES } from '../../../core/models/studio.models';
+import { Pager, pageOf } from '../../../shared/components/pager';
 import { StatusBadge } from '../../../shared/components/status-badge';
 import { statusColor } from '../../../shared/status-colors';
 import { InrPipe } from '../../../shared/pipes/inr.pipe';
@@ -18,7 +19,7 @@ import { InrPipe } from '../../../shared/pipes/inr.pipe';
 /** Table on desktop, stacked cards on phones (pure CSS, see styles). */
 @Component({
   selector: 'app-order-list',
-  imports: [ReactiveFormsModule, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule, MatSelectModule, RouterLink, DatePipe, InrPipe, StatusBadge],
+  imports: [ReactiveFormsModule, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule, MatSelectModule, RouterLink, DatePipe, InrPipe, StatusBadge, Pager],
   template: `
     <header class="page-head blue">
       <span class="ico"><mat-icon>receipt_long</mat-icon></span>
@@ -43,7 +44,7 @@ import { InrPipe } from '../../../shared/pipes/inr.pipe';
     <table class="grid dtable">
       <thead><tr><th>Order</th><th>Client</th><th>Event</th><th>Date</th><th>Status</th><th class="num">Total</th><th class="num">Balance</th></tr></thead>
       <tbody>
-        @for (o of orders(); track o.orderId) {
+        @for (o of rows(); track o.orderId) {
           <tr [routerLink]="['/orders', o.orderId]" [style.--c]="color(o.orderStatus)">
             <td data-label="Order">{{ o.orderNumber }}</td>
             <td data-label="Client"><strong>{{ o.clientName }}</strong></td>
@@ -56,6 +57,7 @@ import { InrPipe } from '../../../shared/pipes/inr.pipe';
         } @empty { <tr><td colspan="7">No orders found.</td></tr> }
       </tbody>
     </table>
+    <app-pager [total]="orders().length" [(page)]="page" />
     </section>
   `,
   styles: `
@@ -91,4 +93,8 @@ export class OrderList {
     ]).pipe(switchMap(([search, status]) => this.api.orders({ search, status }))),
     { initialValue: [] },
   );
+
+  /** 15 per page; goes back to page 1 whenever the search / status filter changes the list. */
+  protected readonly page = linkedSignal({ source: this.orders, computation: () => 1 });
+  protected readonly rows = computed(() => pageOf(this.orders(), this.page()));
 }

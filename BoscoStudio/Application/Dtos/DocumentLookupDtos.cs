@@ -2,7 +2,10 @@ namespace BoscoStudio.Application.Dtos;
 
 // ---------- Lookups (order form dropdowns) ----------
 
-public record PackageDto(int PackageId, string PackageName, string? EventType, decimal BasePrice, string? Inclusions, bool IsActive);
+/// <summary>BasePrice = the sum of the parts that are in the package.</summary>
+public record PackageDto(
+    int PackageId, string PackageName, string? EventType, decimal BasePrice, string? Inclusions, bool IsActive,
+    decimal? PhotoPrice, decimal? VideoPrice, decimal? AlbumPrice);
 
 // ---------- Payment ledger (all orders) ----------
 
@@ -34,7 +37,8 @@ public record DocumentDetailDto(
     IReadOnlyList<DocumentLineDto> Lines,
     decimal Subtotal, decimal DiscountAmount, decimal TaxPercent, decimal TaxAmount, decimal Total,
     IReadOnlyList<PaymentDto> Payments, decimal TotalPaid, decimal BalanceDue,
-    string TaxSplit, IReadOnlyList<TaxLineDto> TaxLines);
+    string TaxSplit, IReadOnlyList<TaxLineDto> TaxLines,
+    IReadOnlyList<DocumentLineDto> AlbumLines, decimal AlbumsTotal, decimal GrandTotal);
 
 public class CreateDocumentRequest
 {

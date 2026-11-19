@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { tap } from 'rxjs';
+import { catchError, finalize, of, tap, timeout } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { LoginRequest, LoginResponse, OwnerRole } from '../models/studio.models';
 
@@ -40,7 +40,18 @@ export class AuthService {
     this.session.set(res);
   }
 
+  /** The owner chose to sign out: tell the API (so the sign-out is recorded), then end the session either way. */
   logout(): void {
+    if (!this.isLoggedIn()) return this.endSession();
+    this.http.post(`${environment.apiUrl}/auth/logout`, {}).pipe(
+      timeout(3000),
+      catchError(() => of(null)),
+      finalize(() => this.endSession()),
+    ).subscribe();
+  }
+
+  /** Forget the session locally without calling the API (expired or rejected token). */
+  endSession(): void {
     localStorage.removeItem(STORAGE_KEY);
     this.session.set(null);
     this.router.navigate(['/login']);

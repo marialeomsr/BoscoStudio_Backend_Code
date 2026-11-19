@@ -23,14 +23,36 @@
     }
   </div>
 
-  <!-- Status actions: horizontally scrollable chips on a phone -->
-  @if (o.allowedNextStatuses.length) {
-    <div class="chips" role="group" aria-label="Move order to">
-      @for (s of o.allowedNextStatuses; track s) {
-        <button mat-stroked-button [disabled]="busy()" (click)="changeStatus(s)">{{ s }}</button>
+  <!-- ===== Order stage: same look as the album stages, with Back / Next ===== -->
+  <section class="panel purple order-stage no-print">
+    <div class="section-head">
+      <h2>Order stage</h2>
+      @if (o.allowedNextStatuses.includes('Cancelled')) {
+        <button mat-button class="danger" [disabled]="busy()" (click)="changeStatus('Cancelled')"><mat-icon>block</mat-icon> Cancel order</button>
       }
     </div>
-  }
+
+    @if (o.orderStatus === 'Cancelled') {
+      <p class="muted">This order is cancelled. Its calendar slots are released and any payments received are kept.</p>
+      @if (o.allowedNextStatuses.includes('Pending')) {
+        <div class="actions"><button mat-flat-button [disabled]="busy()" (click)="changeStatus('Pending')">Re-open order</button></div>
+      }
+    } @else {
+      <ol class="stages" aria-label="Order stages">
+        @for (s of orderStages; track s) {
+          <li [class]="orderStageState(s)"><span class="dot"></span>{{ s }}</li>
+        }
+      </ol>
+      <div class="actions">
+        @if (previousOrderStage(); as prev) {
+          <button mat-button [disabled]="busy()" (click)="changeStatus(prev)">Back to {{ prev }}</button>
+        }
+        @if (nextOrderStage(); as next) {
+          <button mat-flat-button [disabled]="busy()" (click)="changeStatus(next)">{{ next }}</button>
+        } @else if (o.orderStatus === 'Delivered') { <span class="ok">✔ Completed</span> }
+      </div>
+    }
+  </section>
 
   <div class="layout">
     <!-- ===== LEFT: who / when / money ===== -->
@@ -56,15 +78,21 @@
       <section class="panel amber">
         <h2>Money</h2>
         <dl class="money">
-          <dt>Package</dt><dd>{{ o.packageAmount | inr }}</dd>
+          @if (o.includesPhoto) { <dt>Photo</dt><dd>{{ o.photoAmount | inr }}</dd> }
+          @if (o.includesVideo) { <dt>Video</dt><dd>{{ o.videoAmount | inr }}</dd> }
+          @if (o.includesAlbum) { <dt>Album</dt><dd>{{ o.albumAmount | inr }}</dd> }
+          @if ((+o.includesPhoto) + (+o.includesVideo) + (+o.includesAlbum) > 1) { <dt class="strong">Package</dt><dd class="strong">{{ o.packageAmount | inr }}</dd> }
           <dt>Discount</dt><dd>− {{ o.discountAmount | inr }}</dd>
           @for (t of o.taxLines; track t.label) { <dt>{{ t.label }} ({{ t.percent }}%)</dt><dd>{{ t.amount | inr }}</dd> }
-          <dt class="strong">Total</dt><dd class="strong">{{ o.totalAmount | inr }}</dd>
+          <dt class="strong">{{ o.albumsTotal > 0 ? 'Photoshoot total' : 'Total' }}</dt><dd class="strong">{{ o.totalAmount | inr }}</dd>
+          @if (o.albumsTotal > 0) {
+            <dt>Albums ({{ o.albums.length }})</dt><dd>{{ o.albumsTotal | inr }}</dd>
+            <dt class="strong">Total payable</dt><dd class="strong">{{ o.grandTotal | inr }}</dd>
+          }
           <dt>Paid</dt><dd class="ok">{{ o.totalPaid | inr }}</dd>
           <dt class="strong">Balance due</dt><dd class="strong" [class.due]="o.balanceDue > 0">{{ o.balanceDue | inr }}</dd>
         </dl>
         <div class="bar" [attr.aria-label]="paidPercent() + '% paid'"><span [style.width.%]="paidPercent()"></span></div>
-        <p class="muted">Expenses {{ o.totalExpenses | inr }} · Net profit so far <strong>{{ o.netProfit | inr }}</strong></p>
       </section>
 
       <!-- ===== Payments ===== -->
@@ -133,13 +161,28 @@
 
         @if (showAlbumForm()) {
           <form class="form" [formGroup]="albumForm" (ngSubmit)="saveAlbum()">
+            @if (albumPackages().length) {
+              <mat-form-field appearance="outline" class="wide"><mat-label>Album package (optional)</mat-label>
+                <mat-select formControlName="packageId" (selectionChange)="pickAlbumPackage($event.value)">
+                  <mat-option [value]="null">Custom album</mat-option>
+                  @for (p of albumPackages(); track p.packageId) { <mat-option [value]="p.packageId">{{ p.packageName }}@if (!o.includesAlbum) { · {{ p.albumPrice | inr }} }</mat-option> }
+                </mat-select>
+              </mat-form-field>
+            }
             <mat-form-field appearance="outline" class="wide"><mat-label>Album type</mat-label>
               <input matInput formControlName="albumType" placeholder="Premium flush mount 12x36" />
             <mat-error auto></mat-error></mat-form-field>
             <mat-form-field appearance="outline"><mat-label>Sheets</mat-label>
               <input matInput type="number" inputmode="numeric" formControlName="sheetCount" />
             <mat-error auto></mat-error></mat-form-field>
-            <mat-form-field appearance="outline"><mat-label>Print cost</mat-label>
+            @if (o.includesAlbum) {
+              <p class="hint wide">The album is already in this order's package price, so no extra price is charged.</p>
+            } @else {
+              <mat-form-field appearance="outline"><mat-label>Selling price (client pays)</mat-label>
+                <input matInput type="number" inputmode="decimal" formControlName="sellingPrice" />
+              <mat-error auto></mat-error></mat-form-field>
+            }
+            <mat-form-field appearance="outline"><mat-label>Print cost (vendor charges you)</mat-label>
               <input matInput type="number" inputmode="decimal" formControlName="printCost" />
             <mat-error auto></mat-error></mat-form-field>
             <mat-form-field appearance="outline"><mat-label>Print vendor</mat-label>
@@ -159,7 +202,7 @@
           <article class="album">
             <div class="section-head">
               <strong>{{ a.albumType }}</strong>
-              <span class="muted">{{ a.sheetCount }} sheets@if (a.printVendorName) { · {{ a.printVendorName }} }</span>
+              <span class="muted">{{ a.sheetCount }} sheets@if (a.sellingPrice > 0) { · <strong>{{ a.sellingPrice | inr }}</strong> }@else if (o.includesAlbum) { · in package }</span>
             </div>
 
             <!-- Vertical list on phones, horizontal stepper on desktop -->
@@ -170,7 +213,7 @@
             </ol>
 
             @if (a.printVendorName) {
-              <p class="muted">Vendor: {{ a.printVendorName }}@if (a.printVendorContact) { ({{ a.printVendorContact }}) }@if (a.printCost !== null) { · {{ a.printCost | inr }} }</p>
+              <p class="muted">Vendor: {{ a.printVendorName }}@if (a.printVendorContact) { ({{ a.printVendorContact }}) }@if (a.printCost !== null) { · cost {{ a.printCost | inr }} }</p>
             } @else { <p class="muted">No print vendor yet.</p> }
 
             <div class="actions">
@@ -183,7 +226,7 @@
               } @else { <span class="ok">✔ Completed</span> }
             </div>
           </article>
-        } @empty { <p class="muted">No albums for this order.</p> }
+        } @empty { <p class="muted">No albums for this order. A client can order one later, even after delivery: use “+ Album”.</p> }
       </section>
 
       <!-- ===== Expenses ===== -->
@@ -232,18 +275,23 @@
 
           @if (showDeliverableForm()) {
             <form class="form" [formGroup]="deliverableForm" (ngSubmit)="saveDeliverable()">
-              <mat-form-field appearance="outline"><mat-label>Raw backup</mat-label>
-                <mat-select formControlName="rawBackupStatus">@for (s of workStatuses; track s) { <mat-option [value]="s">{{ s }}</mat-option> }</mat-select><mat-error auto></mat-error></mat-form-field>
-              <mat-form-field appearance="outline"><mat-label>Selection by</mat-label>
-                <mat-select formControlName="selectionMode"><mat-option value="Client Selection">Client</mat-option><mat-option value="Studio Selection">Studio</mat-option></mat-select><mat-error auto></mat-error></mat-form-field>
-              <mat-form-field appearance="outline"><mat-label>Photo selection</mat-label>
-                <mat-select formControlName="selectionStatus">@for (s of workStatuses; track s) { <mat-option [value]="s">{{ s }}</mat-option> }</mat-select><mat-error auto></mat-error></mat-form-field>
-              <mat-form-field appearance="outline"><mat-label>Photo editing</mat-label>
-                <mat-select formControlName="photoEditStatus">@for (s of workStatuses; track s) { <mat-option [value]="s">{{ s }}</mat-option> }</mat-select><mat-error auto></mat-error></mat-form-field>
-              <mat-form-field appearance="outline"><mat-label>Teaser edit</mat-label>
-                <mat-select formControlName="teaserEditStatus">@for (s of workStatuses; track s) { <mat-option [value]="s">{{ s }}</mat-option> }</mat-select><mat-error auto></mat-error></mat-form-field>
-              <mat-form-field appearance="outline"><mat-label>Full film edit</mat-label>
-                <mat-select formControlName="fullFilmEditStatus">@for (s of workStatuses; track s) { <mat-option [value]="s">{{ s }}</mat-option> }</mat-select><mat-error auto></mat-error></mat-form-field>
+              <!-- Only the work this order actually includes (Photo / Video / Album) is asked for. -->
+              @if (o.includesPhoto || o.includesAlbum) {
+                <mat-form-field appearance="outline"><mat-label>Selection by</mat-label>
+                  <mat-select formControlName="selectionMode"><mat-option value="Client Selection">Client</mat-option><mat-option value="Studio Selection">Studio</mat-option></mat-select><mat-error auto></mat-error></mat-form-field>
+                <mat-form-field appearance="outline"><mat-label>Photo selection</mat-label>
+                  <mat-select formControlName="selectionStatus">@for (s of workStatuses; track s) { <mat-option [value]="s">{{ s }}</mat-option> }</mat-select><mat-error auto></mat-error></mat-form-field>
+              }
+              @if (o.includesPhoto) {
+                <mat-form-field appearance="outline"><mat-label>Photo editing</mat-label>
+                  <mat-select formControlName="photoEditStatus">@for (s of workStatuses; track s) { <mat-option [value]="s">{{ s }}</mat-option> }</mat-select><mat-error auto></mat-error></mat-form-field>
+              }
+              @if (o.includesVideo) {
+                <mat-form-field appearance="outline"><mat-label>Teaser edit</mat-label>
+                  <mat-select formControlName="teaserEditStatus">@for (s of workStatuses; track s) { <mat-option [value]="s">{{ s }}</mat-option> }</mat-select><mat-error auto></mat-error></mat-form-field>
+                <mat-form-field appearance="outline"><mat-label>Full film edit</mat-label>
+                  <mat-select formControlName="fullFilmEditStatus">@for (s of workStatuses; track s) { <mat-option [value]="s">{{ s }}</mat-option> }</mat-select><mat-error auto></mat-error></mat-form-field>
+              }
               <mat-form-field appearance="outline"><mat-label>Delivery via</mat-label>
                 <mat-select formControlName="cloudProvider"><mat-option value="">None</mat-option>@for (p of cloudProviders; track p) { <mat-option [value]="p">{{ p }}</mat-option> }</mat-select><mat-error auto></mat-error></mat-form-field>
               <mat-form-field appearance="outline"><mat-label>Delivered on</mat-label><input matInput type="date" formControlName="deliveredOn" /><mat-error auto></mat-error></mat-form-field>
@@ -252,11 +300,12 @@
             </form>
           } @else if (o.deliverable; as d) {
             <ul class="plain list">
-              <li><span>Raw backup</span><app-status-badge [status]="d.rawBackupStatus" /></li>
-              <li><span>Selection ({{ d.selectionMode }})</span><app-status-badge [status]="d.selectionStatus" /></li>
-              <li><span>Photo editing</span><app-status-badge [status]="d.photoEditStatus" /></li>
-              <li><span>Teaser</span><app-status-badge [status]="d.teaserEditStatus" /></li>
-              <li><span>Full film</span><app-status-badge [status]="d.fullFilmEditStatus" /></li>
+              @if (o.includesPhoto || o.includesAlbum) { <li><span>Selection ({{ d.selectionMode }})</span><app-status-badge [status]="d.selectionStatus" /></li> }
+              @if (o.includesPhoto) { <li><span>Photo editing</span><app-status-badge [status]="d.photoEditStatus" /></li> }
+              @if (o.includesVideo) {
+                <li><span>Teaser</span><app-status-badge [status]="d.teaserEditStatus" /></li>
+                <li><span>Full film</span><app-status-badge [status]="d.fullFilmEditStatus" /></li>
+              }
             </ul>
             @if (d.cloudLink) { <p><a [href]="d.cloudLink" target="_blank" rel="noopener">Open {{ d.cloudProvider ?? 'delivery' }} link</a></p> }
           } @else {

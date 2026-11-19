@@ -92,7 +92,6 @@ export interface Expense {
 
 export interface Deliverable {
   orderId: number;
-  rawBackupStatus: WorkStatus;
   selectionMode: 'Client Selection' | 'Studio Selection';
   selectionStatus: WorkStatus;
   photoEditStatus: WorkStatus;
@@ -115,6 +114,9 @@ export interface Album {
   printVendorName: string | null;
   printVendorContact: string | null;
   printCost: number | null;
+  /** What the client pays for this album (revenue); part of the order total. printCost is the vendor cost. */
+  sellingPrice: number;
+  packageId: number | null;
   sentToPrintOn: string | null;
   receivedOn: string | null;
   handedOverOn: string | null;
@@ -151,6 +153,31 @@ export interface OrderDetail {
   documents: OrderDocumentRef[];
   taxSplit: TaxSplit;
   taxLines: TaxLine[];
+  createdBy: string | null;
+  updatedAt: string | null;
+  updatedBy: string | null;
+  /** totalAmount is the photoshoot total; albums are added on top: grandTotal = totalAmount + albumsTotal. */
+  albumsTotal: number;
+  grandTotal: number;
+  albumCost: number;
+  /** The parts chosen for the order; packageAmount is their sum. */
+  includesPhoto: boolean;
+  photoAmount: number;
+  includesVideo: boolean;
+  videoAmount: number;
+  includesAlbum: boolean;
+  albumAmount: number;
+}
+
+export type LoginEventType = 'Login' | 'Logout' | 'LoginFailed';
+
+export interface LoginAudit {
+  auditId: number;
+  username: string;
+  eventType: LoginEventType;
+  occurredAt: string;
+  ipAddress: string | null;
+  userAgent: string | null;
 }
 
 export interface MonthlyFinance {
@@ -264,6 +291,8 @@ export interface CreateAlbumRequest {
   printVendorName: string | null;
   printVendorContact: string | null;
   printCost: number | null;
+  sellingPrice: number;
+  packageId: number | null;
   notes: string | null;
 }
 export type UpdateAlbumRequest = CreateAlbumRequest;
@@ -289,7 +318,13 @@ export interface UpdateOrderRequest {
   eventType: string;
   venue: string | null;
   notes: string | null;
-  packageAmount: number | null;
+  /** Tick the parts being bought; an amount of null = the selected package's price for that part. */
+  includePhoto: boolean;
+  photoAmount: number | null;
+  includeVideo: boolean;
+  videoAmount: number | null;
+  includeAlbum: boolean;
+  albumAmount: number | null;
   discountAmount: number;
   taxPercent: number | null;
   taxSplit: TaxSplit;
@@ -324,6 +359,10 @@ export interface PackageInfo {
   basePrice: number;
   inclusions: string | null;
   isActive: boolean;
+  /** Price of each part; null = the part is not in this package. basePrice is their sum. */
+  photoPrice: number | null;
+  videoPrice: number | null;
+  albumPrice: number | null;
 }
 
 /** Owner-managed (Settings > Event types). Orders and packages refer to it by name. */
@@ -343,7 +382,10 @@ export interface SaveEventTypeRequest {
 export interface SavePackageRequest {
   packageName: string;
   eventType: string | null;
-  basePrice: number;
+  /** Price of each part in the package; null = not included. At least one is required. */
+  photoPrice: number | null;
+  videoPrice: number | null;
+  albumPrice: number | null;
   inclusions: string | null;
   isActive: boolean;
 }
@@ -518,6 +560,10 @@ export interface DocumentDetail {
   balanceDue: number;
   taxSplit: TaxSplit;
   taxLines: TaxLine[];
+  /** Albums sold on top of the photoshoot; total / balanceDue below already include them via grandTotal. */
+  albumLines: DocumentLine[];
+  albumsTotal: number;
+  grandTotal: number;
 }
 
 export interface CreateDocumentRequest {
@@ -541,4 +587,55 @@ export interface UpdateOwnerRequest {
 export interface Branding {
   studioName: string;
   tagline: string | null;
+}
+
+// ----- Date range report -----
+export interface ReportPaymentRow {
+  paymentDate: string;
+  orderNumber: string;
+  clientName: string;
+  paymentType: PaymentType;
+  paymentMode: PaymentMode;
+  amount: number;
+  transactionRef: string | null;
+}
+
+export interface ReportExpenseRow {
+  expenseDate: string;
+  source: 'Order' | 'Album print';
+  orderNumber: string;
+  category: string;
+  description: string | null;
+  amount: number;
+}
+
+/** An order in the report: the usual summary plus its total expenses (order expenses + album printing). */
+export interface ReportOrderRow extends OrderSummary {
+  expenses: number;
+}
+
+export interface DateRangeReport {
+  from: string;
+  to: string;
+  orderCount: number;
+  ordersTotal: number;
+  revenue: number;
+  expenses: number;
+  netProfit: number;
+  orders: ReportOrderRow[];
+  payments: ReportPaymentRow[];
+  expenseRows: ReportExpenseRow[];
+  activity: OrderActivityRow[];
+}
+
+/** Who created an order and who last changed it (times are UTC). Shown on the Reports page only. */
+export interface OrderActivityRow {
+  orderId: number;
+  orderNumber: string;
+  clientName: string;
+  orderStatus: OrderStatus;
+  createdAt: string;
+  createdBy: string | null;
+  updatedAt: string | null;
+  updatedBy: string | null;
 }

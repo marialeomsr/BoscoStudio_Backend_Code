@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, inject, linkedSignal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -11,12 +11,13 @@ import { combineLatest, startWith, switchMap } from 'rxjs';
 import { StudioApi } from '../../core/api/studio-api';
 import { PAYMENT_MODES, PaymentLedgerItem } from '../../core/models/studio.models';
 import { toIsoDate } from '../../shared/date-utils';
+import { Pager, pageOf } from '../../shared/components/pager';
 import { InrPipe } from '../../shared/pipes/inr.pipe';
 
 /** Every payment received, newest first, with totals. Defaults to the current month. */
 @Component({
   selector: 'app-payments',
-  imports: [ReactiveFormsModule, DatePipe, RouterLink, InrPipe, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule],
+  imports: [ReactiveFormsModule, DatePipe, RouterLink, InrPipe, Pager, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule],
   template: `
     <header class="page-head green">
       <span class="ico"><mat-icon>payments</mat-icon></span>
@@ -40,7 +41,7 @@ import { InrPipe } from '../../shared/pipes/inr.pipe';
     <table class="grid dtable">
       <thead><tr><th>Date</th><th>Client</th><th>Order</th><th>Type</th><th>Mode</th><th>Ref</th><th class="num">Amount</th></tr></thead>
       <tbody>
-        @for (p of items(); track p.paymentId) {
+        @for (p of rows(); track p.paymentId) {
           <tr>
             <td data-label="Date">{{ p.paymentDate | date: 'd MMM yyyy' }}</td>
             <td data-label="Client"><strong>{{ p.clientName }}</strong></td>
@@ -53,6 +54,7 @@ import { InrPipe } from '../../shared/pipes/inr.pipe';
         } @empty { <tr><td colspan="7">No payments in this period.</td></tr> }
       </tbody>
     </table>
+    <app-pager [total]="items().length" [(page)]="page" />
     </section>
   `,
   styles: `
@@ -96,6 +98,10 @@ export class Payments {
     ]).pipe(switchMap(([from, to, mode]) => this.api.paymentLedger({ from, to, mode }))),
     { initialValue: [] as PaymentLedgerItem[] },
   );
+
+  /** 15 per page; back to page 1 when the dates or mode change the list. Totals above still cover every payment. */
+  protected readonly page = linkedSignal({ source: this.items, computation: () => 1 });
+  protected readonly rows = computed(() => pageOf(this.items(), this.page()));
 
   protected readonly total = computed(() => this.items().reduce((s, p) => s + p.amount, 0));
   protected readonly byMode = computed(() => {

@@ -77,7 +77,7 @@ public class CatalogService(PhotoStudioDbContext db) : ICatalogService
         db.Packages.AsNoTracking()
             .Where(p => includeInactive || p.IsActive)
             .OrderBy(p => p.EventType).ThenBy(p => p.PackageName)
-            .Select(p => new PackageDto(p.PackageId, p.PackageName, p.EventType, p.BasePrice, p.Inclusions, p.IsActive))
+            .Select(p => new PackageDto(p.PackageId, p.PackageName, p.EventType, p.BasePrice, p.Inclusions, p.IsActive, p.PhotoPrice, p.VideoPrice, p.AlbumPrice))
             .ToListAsync(ct);
 
     public async Task<PackageDto> CreatePackageAsync(SavePackageRequest r, CancellationToken ct)
@@ -104,6 +104,8 @@ public class CatalogService(PhotoStudioDbContext db) : ICatalogService
         var p = await db.Packages.FindAsync([id], ct) ?? throw new NotFoundException("Package", id);
         if (await db.Orders.AnyAsync(o => o.PackageId == id, ct))
             throw new BusinessRuleException("This package is used by existing orders. Deactivate it instead of deleting.");
+        if (await db.Albums.AnyAsync(a => a.PackageId == id, ct))
+            throw new BusinessRuleException("Albums were already sold from this package. Deactivate it instead of deleting.");
         db.Packages.Remove(p);
         await db.SaveChangesAsync(ct);
     }
@@ -113,6 +115,10 @@ public class CatalogService(PhotoStudioDbContext db) : ICatalogService
         string name = r.PackageName.Trim();
         if (await db.Packages.AnyAsync(p => p.PackageName == name && p.PackageId != (id ?? 0), ct))
             throw new ConflictException($"A package named '{name}' already exists.");
+        if (r.PhotoPrice is null && r.VideoPrice is null && r.AlbumPrice is null)
+            throw new BusinessRuleException("Include at least one of Photo, Video or Album, with its price.");
+        if (id is int albumPkgId && r.AlbumPrice is null && await db.Albums.AnyAsync(a => a.PackageId == albumPkgId, ct))
+            throw new BusinessRuleException("Albums were already sold from this package, so its Album part cannot be removed.");
         if (!string.IsNullOrEmpty(r.EventType) && !await db.EventTypes.AnyAsync(e => e.EventTypeName == r.EventType, ct))
             throw new BusinessRuleException($"Unknown event type '{r.EventType}'.");
     }
@@ -121,10 +127,14 @@ public class CatalogService(PhotoStudioDbContext db) : ICatalogService
     {
         p.PackageName = r.PackageName.Trim();
         p.EventType = string.IsNullOrWhiteSpace(r.EventType) ? null : r.EventType;
-        p.BasePrice = r.BasePrice;
+        p.PhotoPrice = r.PhotoPrice;
+        p.VideoPrice = r.VideoPrice;
+        p.AlbumPrice = r.AlbumPrice;
+        p.BasePrice = (r.PhotoPrice ?? 0) + (r.VideoPrice ?? 0) + (r.AlbumPrice ?? 0);   // the whole bundle
         p.Inclusions = r.Inclusions;
         p.IsActive = r.IsActive;
     }
 
-    private static PackageDto ToDto(Package p) => new(p.PackageId, p.PackageName, p.EventType, p.BasePrice, p.Inclusions, p.IsActive);
+    private static PackageDto ToDto(Package p) =>
+        new(p.PackageId, p.PackageName, p.EventType, p.BasePrice, p.Inclusions, p.IsActive, p.PhotoPrice, p.VideoPrice, p.AlbumPrice);
 }

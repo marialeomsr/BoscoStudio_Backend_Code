@@ -19,6 +19,15 @@ public class AuthController(IAuthService auth) : ControllerBase
         return result is null ? Unauthorized(new ProblemDetails { Title = "Invalid username or password" }) : result;
     }
 
+    /// <summary>Records that the signed-in owner signed out (the token itself simply expires; the client discards it).</summary>
+    [Authorize]
+    [HttpPost("logout")]
+    public async Task<IActionResult> Logout(CancellationToken ct)
+    {
+        await auth.LogoutAsync(CurrentOwnerId, User.FindFirstValue(ClaimTypes.Name)!, ct);
+        return NoContent();
+    }
+
     /// <summary>Studio name and tagline for the sign-in page. Public, and exposes nothing about accounts.</summary>
     [AllowAnonymous]
     [HttpGet("branding")]

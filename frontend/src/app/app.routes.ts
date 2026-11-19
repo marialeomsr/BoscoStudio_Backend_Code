@@ -20,6 +20,7 @@ export const routes: Routes = [
       { path: 'calendar', loadComponent: () => import('./features/calendar/calendar').then((m) => m.Calendar) },
       { path: 'albums', loadComponent: () => import('./features/albums/albums').then((m) => m.Albums) },
       { path: 'payments', loadComponent: () => import('./features/payments/payments').then((m) => m.Payments) },
+      { path: 'reports', loadComponent: () => import('./features/reports/reports').then((m) => m.Reports) },
       { path: 'invoices', loadComponent: () => import('./features/invoices/invoice-list').then((m) => m.InvoiceList) },
       { path: 'clients', loadComponent: () => import('./features/clients/clients').then((m) => m.Clients) },
       { path: 'settings', canActivate: [adminGuard], loadComponent: () => import('./features/settings/settings').then((m) => m.Settings) },

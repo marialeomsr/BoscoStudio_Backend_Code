@@ -21,6 +21,7 @@ public class JwtOptions
 public interface IAuthService
 {
     Task<LoginResponse?> LoginAsync(LoginRequest request, CancellationToken ct);
+    Task LogoutAsync(int ownerId, string username, CancellationToken ct);
     Task ChangePasswordAsync(int ownerId, ChangePasswordRequest request, CancellationToken ct);
     Task<OwnerDto> GetProfileAsync(int ownerId, CancellationToken ct);
     Task<BrandingDto> GetBrandingAsync(CancellationToken ct);
@@ -29,7 +30,9 @@ public interface IAuthService
 }
 
 /// <summary>Owner sign-in (BCrypt password check -> JWT) and the signed-in owner's own account.</summary>
-public class AuthService(PhotoStudioDbContext db, Microsoft.Extensions.Options.IOptions<JwtOptions> options) : IAuthService
+public class AuthService(
+    PhotoStudioDbContext db, Microsoft.Extensions.Options.IOptions<JwtOptions> options, IHttpContextAccessor http,
+    ILogger<AuthService> logger) : IAuthService
 {
     private readonly JwtOptions _jwt = options.Value;
 
@@ -40,7 +43,44 @@ public class AuthService(PhotoStudioDbContext db, Microsoft.Extensions.Options.I
         // Verify even when the user is unknown so response time doesn't reveal valid usernames.
         const string dummyHash = "$2a$11$gYvBkSu1PtbHnnCCa2/oF.4Vn98BiWLXMU82ci146mzkxF7aAy8j.";
         bool ok = BCrypt.Net.BCrypt.Verify(request.Password, owner?.PasswordHash ?? dummyHash);
-        return owner is null || !ok ? null : Issue(owner);
+
+        if (owner is null || !ok)
+        {
+            await RecordAsync(owner?.OwnerId, owner?.Username ?? request.Username, LoginEvents.LoginFailed, ct);
+            return null;
+        }
+        await RecordAsync(owner.OwnerId, owner.Username, LoginEvents.Login, ct);
+        return Issue(owner);
+    }
+
+    public Task LogoutAsync(int ownerId, string username, CancellationToken ct) =>
+        RecordAsync(ownerId, username, LoginEvents.Logout, ct);
+
+    /// <summary>Appends one sign-in event. Text from the client is trimmed to the column sizes so a long value can't break the insert.</summary>
+    private async Task RecordAsync(int? ownerId, string username, string eventType, CancellationToken ct)
+    {
+        static string? Cut(string? s, int max) => string.IsNullOrEmpty(s) ? null : s.Length <= max ? s : s[..max];
+        var ctx = http.HttpContext;
+        var audit = new LoginAudit
+        {
+            OwnerId = ownerId,
+            Username = Cut(username, 50) ?? "",
+            EventType = eventType,
+            OccurredAt = DateTime.UtcNow,
+            IpAddress = Cut(ctx?.Connection.RemoteIpAddress?.ToString(), 45),
+            UserAgent = Cut(ctx?.Request.Headers.UserAgent.ToString(), 300),
+        };
+        // The history is best-effort: a logging problem must never stop an owner from signing in or out.
+        try
+        {
+            db.LoginAudits.Add(audit);
+            await db.SaveChangesAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            db.Entry(audit).State = EntityState.Detached;
+            logger.LogError(ex, "Could not record {Event} for '{Username}'.", eventType, audit.Username);
+        }
     }
 
     public async Task ChangePasswordAsync(int ownerId, ChangePasswordRequest request, CancellationToken ct)

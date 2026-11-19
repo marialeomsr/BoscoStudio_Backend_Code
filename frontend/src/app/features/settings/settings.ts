@@ -3,6 +3,7 @@ import { AuthService } from '../../core/auth/auth.service';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTabsModule } from '@angular/material/tabs';
 import { EventTypesSettings } from './event-types-settings';
+import { LoginLogSettings } from './login-log-settings';
 import { OwnersSettings } from './owners-settings';
 import { PackagesSettings } from './packages-settings';
 import { StudioSettingsForm } from './studio-settings';
@@ -10,7 +11,7 @@ import { StudioSettingsForm } from './studio-settings';
 /** Everything the owner configures: studio details (printed on documents), event types, and packages per event type. */
 @Component({
   selector: 'app-settings',
-  imports: [MatIconModule, MatTabsModule, StudioSettingsForm, EventTypesSettings, PackagesSettings, OwnersSettings],
+  imports: [MatIconModule, MatTabsModule, StudioSettingsForm, EventTypesSettings, PackagesSettings, OwnersSettings, LoginLogSettings],
   template: `
     <header class="page-head slate">
       <span class="ico"><mat-icon>settings</mat-icon></span>
@@ -23,12 +24,15 @@ import { StudioSettingsForm } from './studio-settings';
         <mat-tab label="Event types"><div class="pane"><app-event-types-settings /></div></mat-tab>
         <mat-tab label="Packages"><div class="pane"><app-packages-settings /></div></mat-tab>
       }
-      @if (auth.can('owners.manage')) { <mat-tab label="Owners"><div class="pane"><app-owners-settings /></div></mat-tab> }
+      @if (auth.can('owners.manage')) {
+        <mat-tab label="Owners"><div class="pane"><app-owners-settings /></div></mat-tab>
+        <mat-tab label="Sign-in log"><div class="pane"><app-login-log-settings /></div></mat-tab>
+      }
     </mat-tab-group>
     </section>
   `,
   styles: `
-    :host { display: block; max-width: 900px; margin: 0 auto; }
+    :host { display: block; max-width: 1000px; margin: 0 auto; }
     .pane { padding-top: 16px; }
   `,
 })

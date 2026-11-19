@@ -36,6 +36,22 @@ public partial class Order
     [StringLength(1000)]
     public string? Notes { get; set; }
 
+    // The parts chosen for this order and what each costs. PackageAmount is always their sum (set by OrderService).
+    public bool IncludesPhoto { get; set; }
+
+    public bool IncludesVideo { get; set; }
+
+    public bool IncludesAlbum { get; set; }
+
+    [Column(TypeName = "decimal(12, 2)")]
+    public decimal PhotoAmount { get; set; }
+
+    [Column(TypeName = "decimal(12, 2)")]
+    public decimal VideoAmount { get; set; }
+
+    [Column(TypeName = "decimal(12, 2)")]
+    public decimal AlbumAmount { get; set; }
+
     [Column(TypeName = "decimal(12, 2)")]
     public decimal PackageAmount { get; set; }
 
@@ -56,6 +72,14 @@ public partial class Order
 
     [Precision(0)]
     public DateTime? UpdatedAt { get; set; }
+
+    /// <summary>Username of the owner who created the order (null for orders made before tracking existed).</summary>
+    [StringLength(50)]
+    public string? CreatedBy { get; set; }
+
+    /// <summary>Username of the owner who last changed the order.</summary>
+    [StringLength(50)]
+    public string? UpdatedBy { get; set; }
 
     [StringLength(12)]
     public string TaxSplit { get; set; } = null!;

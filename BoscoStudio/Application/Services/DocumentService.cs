@@ -26,8 +26,8 @@ public class DocumentService(PhotoStudioDbContext db, DocumentNumberGenerator nu
             .OrderByDescending(d => d.DocumentId)
             .Select(d => new DocumentSummaryDto(
                 d.DocumentId, d.DocumentNumber, d.DocumentType, d.OrderId, d.Order.OrderNumber, d.Order.Client.FullName,
-                d.IssueDate, d.Order.TotalAmount ?? 0,
-                (d.Order.TotalAmount ?? 0) - d.Order.Payments.Sum(p => p.Amount)))
+                d.IssueDate, (d.Order.TotalAmount ?? 0) + d.Order.Albums.Sum(a => a.SellingPrice),
+                (d.Order.TotalAmount ?? 0) + d.Order.Albums.Sum(a => a.SellingPrice) - d.Order.Payments.Sum(p => p.Amount)))
             .ToListAsync(ct);
 
     public async Task<DocumentDetailDto> GetAsync(int documentId, CancellationToken ct)
@@ -36,6 +36,7 @@ public class DocumentService(PhotoStudioDbContext db, DocumentNumberGenerator nu
             .Include(x => x.DocumentLines)
             .Include(x => x.Order).ThenInclude(o => o.Client)
             .Include(x => x.Order).ThenInclude(o => o.Payments)
+            .Include(x => x.Order).ThenInclude(o => o.Albums)
             .AsSplitQuery()
             .FirstOrDefaultAsync(x => x.DocumentId == documentId, ct)
             ?? throw new NotFoundException("Document", documentId);
@@ -53,13 +54,18 @@ public class DocumentService(PhotoStudioDbContext db, DocumentNumberGenerator nu
             lines, o.PackageAmount, o.DiscountAmount, o.TaxPercent, o.TaxAmount ?? 0, o.TotalAmount ?? 0,
             o.Payments.OrderBy(p => p.PaymentDate).ThenBy(p => p.PaymentId).Select(p => p.ToDto()).ToList(),
             o.TotalPaid, o.BalanceDue,
-            o.TaxSplit, TaxSplits.Build(o.TaxPercent, o.TaxAmount ?? 0, o.TaxSplit, o.CgstPercent));
+            o.TaxSplit, TaxSplits.Build(o.TaxPercent, o.TaxAmount ?? 0, o.TaxSplit, o.CgstPercent),
+            // Albums are sold separately from the photoshoot: listed on their own, on top of the photoshoot total.
+            o.Albums.Where(a => a.SellingPrice > 0).OrderBy(a => a.AlbumId)
+                .Select(a => new DocumentLineDto($"Album: {a.AlbumType} ({a.SheetCount} sheets)", 1, a.SellingPrice, a.SellingPrice)).ToList(),
+            o.AlbumsTotal, o.GrandTotal);
     }
 
     public async Task<DocumentDetailDto> UpdateAsync(int documentId, UpdateDocumentRequest r, CancellationToken ct)
     {
         var doc = await db.Documents.Include(d => d.DocumentLines)
             .Include(d => d.Order).ThenInclude(o => o.Payments)
+            .Include(d => d.Order).ThenInclude(o => o.Albums)
             .FirstOrDefaultAsync(d => d.DocumentId == documentId, ct)
             ?? throw new NotFoundException("Document", documentId);
 
@@ -107,8 +113,8 @@ public class DocumentService(PhotoStudioDbContext db, DocumentNumberGenerator nu
 
         decimal net = subtotal - discount;
         decimal newTotal = net + Math.Round(net * pct / 100m, 2);
-        if (newTotal < order.TotalPaid)
-            throw new BusinessRuleException($"The new total {newTotal:N2} is lower than the {order.TotalPaid:N2} already received.");
+        if (newTotal + order.AlbumsTotal < order.TotalPaid)
+            throw new BusinessRuleException($"The new total {newTotal + order.AlbumsTotal:N2} is lower than the {order.TotalPaid:N2} already received.");
 
         if (lines is not null)
         {
@@ -127,6 +133,13 @@ public class DocumentService(PhotoStudioDbContext db, DocumentNumberGenerator nu
             }
         }
 
+        if (subtotal != order.PackageAmount)
+        {
+            // The owner re-priced the items freely, so they no longer map to Photo / Video / Album: keep the order's
+            // parts consistent by recording the new total as one lump sum (shown as Photo).
+            order.IncludesPhoto = true; order.IncludesVideo = false; order.IncludesAlbum = false;
+            order.PhotoAmount = subtotal; order.VideoAmount = 0; order.AlbumAmount = 0;
+        }
         order.PackageAmount = subtotal;
         order.DiscountAmount = discount;
         order.TaxPercent = pct;
@@ -172,12 +185,8 @@ public class DocumentService(PhotoStudioDbContext db, DocumentNumberGenerator nu
             foreach (var l in template.DocumentLines.OrderBy(l => l.LineId))
                 doc.DocumentLines.Add(new DocumentLine { Description = l.Description, Quantity = l.Quantity, UnitPrice = l.UnitPrice });
         else
-            doc.DocumentLines.Add(new DocumentLine
-            {
-                Description = order.Package is null ? $"{order.EventType} photography" : $"{order.Package.PackageName} – {order.EventType}",
-                Quantity = 1,
-                UnitPrice = order.PackageAmount
-            });
+            foreach (var (description, amount) in OrderPricing.Lines(order))   // one line per part: Photography / Videography / Album
+                doc.DocumentLines.Add(new DocumentLine { Description = description, Quantity = 1, UnitPrice = amount });
 
         db.Documents.Add(doc);
         await db.SaveChangesAsync(ct);

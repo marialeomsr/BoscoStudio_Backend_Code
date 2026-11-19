@@ -26,6 +26,17 @@ public partial class Package
 
     public bool IsActive { get; set; }
 
+    // A package is a bundle of up to three parts, each with its own price. Null = the part is not in the package.
+    // BasePrice is the sum of the parts that are in it.
+    [Column(TypeName = "decimal(12, 2)")]
+    public decimal? PhotoPrice { get; set; }
+
+    [Column(TypeName = "decimal(12, 2)")]
+    public decimal? VideoPrice { get; set; }
+
+    [Column(TypeName = "decimal(12, 2)")]
+    public decimal? AlbumPrice { get; set; }
+
     [ForeignKey("EventType")]
     [InverseProperty("Packages")]
     public virtual EventType? EventTypeNavigation { get; set; }

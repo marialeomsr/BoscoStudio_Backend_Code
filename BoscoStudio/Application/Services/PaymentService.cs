@@ -32,7 +32,7 @@ public class PaymentService(PhotoStudioDbContext db) : IPaymentService
     public async Task<PaymentDto> AddPaymentAsync(int orderId, CreatePaymentRequest r, CancellationToken ct)
     {
         var order = await db.Orders.AsNoTracking()
-            .Select(o => new { o.OrderId, o.OrderStatus, Total = o.TotalAmount ?? 0, Paid = o.Payments.Sum(p => p.Amount) })
+            .Select(o => new { o.OrderId, o.OrderStatus, Total = (o.TotalAmount ?? 0) + o.Albums.Sum(a => a.SellingPrice), Paid = o.Payments.Sum(p => p.Amount) })
             .FirstOrDefaultAsync(o => o.OrderId == orderId, ct)
             ?? throw new NotFoundException("Order", orderId);
 

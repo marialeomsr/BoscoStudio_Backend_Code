@@ -16,7 +16,11 @@ public class SavePackageRequest
     public string PackageName { get; set; } = "";
     /// <summary>Must be an existing event type; null = usable for any event.</summary>
     public string? EventType { get; set; }
-    public decimal BasePrice { get; set; }
+    /// <summary>Price of each part in the package. Null = the part is not part of this package (at least one is required).</summary>
+    public decimal? PhotoPrice { get; set; }
+    public decimal? VideoPrice { get; set; }
+    public decimal? AlbumPrice { get; set; }
+    /// <summary>Extra details of what is included (free text).</summary>
     public string? Inclusions { get; set; }
     public bool IsActive { get; set; } = true;
 }

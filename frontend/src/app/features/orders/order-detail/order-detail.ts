@@ -13,8 +13,8 @@ import { Observable } from 'rxjs';
 import { StudioApi } from '../../../core/api/studio-api';
 import { AuthService } from '../../../core/auth/auth.service';
 import {
-  ALBUM_STAGES, Album, CreateAlbumRequest, CreateExpenseRequest, CreatePaymentRequest, EXPENSE_CATEGORIES,
-  DocumentType, ExpenseCategory, OrderDetail, PAYMENT_MODES, PAYMENT_TYPES, PaymentMode, PaymentType, UpdateDeliverableRequest, WORK_STATUSES,
+  ALBUM_STAGES, Album, CreateAlbumRequest, ORDER_STATUSES, CreateExpenseRequest, CreatePaymentRequest, EXPENSE_CATEGORIES,
+  DocumentType, ExpenseCategory, OrderDetail, PackageInfo, PAYMENT_MODES, PAYMENT_TYPES, PaymentMode, PaymentType, UpdateDeliverableRequest, WORK_STATUSES,
 } from '../../../core/models/studio.models';
 import { describeError } from '../../../shared/api-error';
 import { AlbumEditDialog } from '../../../shared/components/album-edit-dialog';
@@ -38,7 +38,6 @@ type ExpenseForm = FormGroup<{
   amount: FormControl<number | null>;
 }>;
 type DeliverableForm = FormGroup<{
-  rawBackupStatus: FormControl<string>;
   selectionMode: FormControl<string>;
   selectionStatus: FormControl<string>;
   photoEditStatus: FormControl<string>;
@@ -49,7 +48,9 @@ type DeliverableForm = FormGroup<{
   deliveredOn: FormControl<string>;
 }>;
 type AlbumForm = FormGroup<{
+  packageId: FormControl<number | null>;
   albumType: FormControl<string>;
+  sellingPrice: FormControl<number | null>;
   sheetCount: FormControl<number | null>;
   printVendorName: FormControl<string>;
   printVendorContact: FormControl<string>;
@@ -73,6 +74,8 @@ type AlbumForm = FormGroup<{
 })
 export class OrderDetailPage {
   protected readonly auth = inject(AuthService);
+  /** Packages that include an Album part, to prefill the "add album" form. */
+  protected readonly albumPackages = signal<PackageInfo[]>([]);
   private readonly api = inject(StudioApi);
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly dialog = inject(MatDialog);
@@ -95,8 +98,25 @@ export class OrderDetailPage {
   /** 0-100 for the "paid" progress bar. */
   protected readonly paidPercent = computed(() => {
     const o = this.order();
-    return o && o.totalAmount > 0 ? Math.min(100, Math.round((o.totalPaid / o.totalAmount) * 100)) : 0;
+    return o && o.grandTotal > 0 ? Math.min(100, Math.round((o.totalPaid / o.grandTotal) * 100)) : 0;
   });
+  /** The order's journey (Cancelled is a side exit, not a stage). */
+  protected readonly orderStages = ORDER_STATUSES.filter((s) => s !== 'Cancelled');
+
+  protected orderStageState(stage: string): 'done' | 'current' | 'todo' {
+    const cur = this.orderStages.findIndex((s) => s === this.order()?.orderStatus), i = this.orderStages.findIndex((s) => s === stage);
+    return i < cur ? 'done' : i === cur ? 'current' : 'todo';
+  }
+
+  /** The neighbouring stage, only when the API allows that move (Delivered is final, one step back at most). */
+  private neighbour(offset: -1 | 1): string | null {
+    const o = this.order();
+    const target = this.orderStages[this.orderStages.findIndex((s) => s === o?.orderStatus) + offset];
+    return target && o?.allowedNextStatuses.some((s) => s === target) ? target : null;
+  }
+  protected readonly previousOrderStage = computed(() => this.neighbour(-1));
+  protected readonly nextOrderStage = computed(() => this.neighbour(1));
+
   protected readonly canRecordPayment = computed(() => {
     const o = this.order();
     return !!o && o.orderStatus !== 'Cancelled' && o.balanceDue > 0;
@@ -124,7 +144,9 @@ export class OrderDetailPage {
     amount: this.fb.control<number | null>(null, [Validators.required, positiveMoney]),
   });
   protected readonly albumForm: AlbumForm = this.fb.group({
+    packageId: this.fb.control<number | null>(null),
     albumType: this.fb.control('', [Validators.required, Validators.maxLength(60)]),
+    sellingPrice: this.fb.control<number | null>(0, money),
     sheetCount: this.fb.control<number | null>(30, [Validators.required, intRange(1, 500)]),
     printVendorName: this.fb.control('', Validators.maxLength(120)),
     printVendorContact: this.fb.control('', [phoneOrEmail, Validators.maxLength(60)]),
@@ -132,7 +154,6 @@ export class OrderDetailPage {
   });
 
   protected readonly deliverableForm: DeliverableForm = this.fb.group({
-    rawBackupStatus: this.fb.control('Not Started'),
     selectionMode: this.fb.control('Client Selection'),
     selectionStatus: this.fb.control('Not Started'),
     photoEditStatus: this.fb.control('Not Started'),
@@ -145,6 +166,7 @@ export class OrderDetailPage {
 
   ngOnInit(): void {
     this.reload();   // route input `id` is available from ngOnInit onwards
+    this.api.packages().subscribe((p) => this.albumPackages.set(p.filter((x) => x.albumPrice !== null)));
   }
 
   protected reload(): void {
@@ -210,15 +232,24 @@ export class OrderDetailPage {
 
   // ---------- Albums ----------
 
+  /** Picking an album package fills the name and selling price; both can still be changed for this client. */
+  protected pickAlbumPackage(packageId: number | null): void {
+    const p = this.albumPackages().find((x) => x.packageId === packageId);
+    if (!p) return;
+    // When the order already includes the Album part its price is in the order total, so the extra price stays 0.
+    this.albumForm.patchValue({ albumType: p.packageName.slice(0, 60), sellingPrice: this.order()?.includesAlbum ? 0 : p.albumPrice ?? 0 });
+  }
+
   protected saveAlbum(): void {
     if (this.albumForm.invalid) return;
     const f = this.albumForm.getRawValue();
     const body: CreateAlbumRequest = {
       albumType: f.albumType, sheetCount: f.sheetCount!, printVendorName: f.printVendorName || null,
-      printVendorContact: f.printVendorContact || null, printCost: f.printCost, notes: null,
+      printVendorContact: f.printVendorContact || null, printCost: f.printCost,
+      sellingPrice: this.order()!.includesAlbum ? 0 : f.sellingPrice ?? 0, packageId: f.packageId, notes: null,
     };
     this.run(this.api.addAlbum(this.order()!.orderId, body), 'Album added', () => {
-      this.albumForm.reset({ sheetCount: 30 });
+      this.albumForm.reset({ sheetCount: 30, sellingPrice: 0 });
       this.showAlbumForm.set(false);
       this.reload();
     });
@@ -230,13 +261,13 @@ export class OrderDetailPage {
 
     // The print lab needs a vendor: ask for it right here instead of failing.
     if (stage === 'Sent to Print Lab' && !album.printVendorName) {
-      AlbumEditDialog.open(this.dialog, { album, hint: 'Enter the print vendor to send this album to the print lab.' })
+      AlbumEditDialog.open(this.dialog, { album, priceIncluded: this.order()?.includesAlbum, hint: 'Enter the print vendor to send this album to the print lab.' })
         .subscribe((saved) => saved?.printVendorName && advance());
     } else advance();
   }
 
   protected editAlbum(album: Album): void {
-    AlbumEditDialog.open(this.dialog, { album }).subscribe((saved) => {
+    AlbumEditDialog.open(this.dialog, { album, priceIncluded: this.order()?.includesAlbum }).subscribe((saved) => {
       if (saved) { this.snack.open('Album details saved', 'OK', { duration: 2500 }); this.reload(); }
     });
   }

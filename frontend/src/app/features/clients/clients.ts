@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -7,18 +7,19 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { BehaviorSubject, combineLatest, debounceTime, startWith, switchMap } from 'rxjs';
+import { BehaviorSubject, combineLatest, debounceTime, startWith, switchMap, tap } from 'rxjs';
 import { StudioApi } from '../../core/api/studio-api';
 import { AuthService } from '../../core/auth/auth.service';
 import { ClientRecord } from '../../core/models/studio.models';
 import { describeError } from '../../shared/api-error';
 import { ConfirmDialog } from '../../shared/components/confirm-dialog';
+import { Pager, pageOf } from '../../shared/components/pager';
 import { ClientEditDialog } from './client-edit-dialog';
 
 /** Client records: search, add, edit, delete (only when the client has no orders). Table on desktop, cards on phones. */
 @Component({
   selector: 'app-clients',
-  imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule],
+  imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, Pager],
   template: `
     <header class="page-head teal">
       <span class="ico"><mat-icon>groups</mat-icon></span>
@@ -36,7 +37,7 @@ import { ClientEditDialog } from './client-edit-dialog';
     <table class="grid dtable">
       <thead><tr><th>Name</th><th>Phone</th><th>Email</th><th class="num">Orders</th><th></th></tr></thead>
       <tbody>
-        @for (c of clients(); track c.clientId) {
+        @for (c of rows(); track c.clientId) {
           <tr>
             <td data-label="Name"><strong>{{ c.fullName }}</strong>@if (c.notes) { <div class="muted">{{ c.notes }}</div> }</td>
             <td data-label="Phone">
@@ -53,6 +54,7 @@ import { ClientEditDialog } from './client-edit-dialog';
         } @empty { <tr><td colspan="5" class="muted">No clients found.</td></tr> }
       </tbody>
     </table>
+    <app-pager [total]="clients().length" [(page)]="page" />
     </section>
   `,
   styles: `
@@ -81,12 +83,17 @@ export class Clients {
   protected readonly search = new FormControl('', { nonNullable: true });
   private readonly refresh = new BehaviorSubject<void>(undefined);
 
+  /** 15 per page. A new search goes back to page 1; adding / editing / deleting a client keeps you on the same page. */
+  protected readonly page = signal(1);
+
   protected readonly clients = toSignal(
-    combineLatest([this.search.valueChanges.pipe(startWith(''), debounceTime(250)), this.refresh]).pipe(
+    combineLatest([this.search.valueChanges.pipe(startWith(''), debounceTime(250), tap(() => this.page.set(1))), this.refresh]).pipe(
       switchMap(([q]) => this.api.clients(q)),
     ),
     { initialValue: [] as ClientRecord[] },
   );
+
+  protected readonly rows = computed(() => pageOf(this.clients(), this.page()));
 
   protected add(): void {
     ClientEditDialog.open(this.dialog, null).subscribe((saved) => {
