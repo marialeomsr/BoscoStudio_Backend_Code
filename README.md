@@ -40,13 +40,8 @@ Request trace: `Controller → IXxxService → PhotoStudioDbContext → SQL`. No
 
 1. **Database**
    * *New machine:* SSMS → connect to `MARIALEO` (SQL auth, `sa`) → open `Database/PhotoStudioDB.sql` → Execute.
-<<<<<<< HEAD
      (Command line: `sqlcmd -S (Server Name) -U sa -P (Password) -C -I -i Database\PhotoStudioDB.sql` – `-I` is required.)
-   * *Existing database from the first version:* run only `Database/002_EventTypes_Documents_Upgrade.sql`.
-=======
-     (Command line: `sqlcmd -S MARIALEO -U sa -P ciglobal123 -C -I -i Database\PhotoStudioDB.sql` – `-I` is required.)
    * *Existing database from the first version:* run `Database/002_EventTypes_Documents_Upgrade.sql` and then `Database/003_TaxSplit_Roles_Upgrade.sql` (existing owners become Admin).
->>>>>>> 6ad8cb9 (Role based)
      It adds the EventTypes table, links orders/packages to it, and removes duplicate quotations (keeps the oldest per order).
    Verify: `SELECT * FROM PhotoStudioDB.dbo.OwnerAccounts;` returns one row.
 2. **API** – `cd BoscoStudio; dotnet run --launch-profile http` → <http://localhost:5238/swagger>
@@ -111,9 +106,6 @@ Login · **Home** (quick actions, KPI cards, overdue "Needs update" alert, upcom
 Calendar (Month/Week/Day) · Albums (incl. edit print vendor) · **Clients** · Payments ledger · Quotations & invoices (list, print/PDF view,
 edit incl. items) · **Settings** (studio details printed on documents, event types, packages per event type, account password).
 
-<<<<<<< HEAD
-=======
 ## Not built yet
 
 Password reset by email; separate CGST/SGST rates (today the tax % is split in half); more granular permissions than the three roles.
->>>>>>> 6ad8cb9 (Role based)
