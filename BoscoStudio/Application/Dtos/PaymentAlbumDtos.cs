@@ -1,4 +1,4 @@
-namespace BoscoStudio.Application.Dtos;
+﻿namespace BoscoStudio.Application.Dtos;
 
 // ---------- Payments & expenses ----------
 
@@ -91,4 +91,4 @@ public class LoginRequest
     public string Password { get; set; } = "";
 }
 
-public record LoginResponse(string Token, DateTime ExpiresAtUtc, string FullName, string Role, IReadOnlyList<string> Permissions);
+public record LoginResponse(string Token, DateTime ExpiresAtUtc, string FullName, string Role, IReadOnlyList<string> Permissions, int? StudioId, string? StudioName);

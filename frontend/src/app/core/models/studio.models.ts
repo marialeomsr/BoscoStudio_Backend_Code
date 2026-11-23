@@ -173,6 +173,8 @@ export type LoginEventType = 'Login' | 'Logout' | 'LoginFailed';
 
 export interface LoginAudit {
   auditId: number;
+  studioId: number | null;
+  studioName: string | null;
   username: string;
   eventType: LoginEventType;
   occurredAt: string;
@@ -219,7 +221,9 @@ export interface Dashboard {
   albumsByStage: AlbumStageCount[];
 }
 
-export type OwnerRole = 'Admin' | 'Manager' | 'Staff';
+/** A role name from the Roles master table (SuperAdmin, Owner, Staff, or a custom role). */
+export type OwnerRole = string;
+export const SUPER_ADMIN = 'SuperAdmin';
 /** Every permission, grouped for the owner editor. Keys match BoscoStudio/Application/Common/AppPermissions.cs. */
 export interface PermissionInfo { key: string; label: string }
 export const PERMISSION_GROUPS: { title: string; items: PermissionInfo[] }[] = [
@@ -242,16 +246,10 @@ export const PERMISSION_GROUPS: { title: string; items: PermissionInfo[] }[] = [
   { title: 'Quotations & invoices', items: [{ key: 'documents.manage', label: 'Create and edit quotations and invoices' }] },
   { title: 'Administration', items: [
     { key: 'settings.manage', label: 'Settings: studio details, event types, packages' },
-    { key: 'owners.manage', label: 'Owner accounts and permissions' },
+    { key: 'owners.manage', label: 'Studio logins (owner / staff) and their permissions' },
   ] },
 ];
 
-export const OWNER_ROLES: OwnerRole[] = ['Admin', 'Manager', 'Staff'];
-export const ROLE_HELP: Record<OwnerRole, string> = {
-  Admin: 'Everything, including Settings and owner accounts',
-  Manager: 'Everything except Settings and owner accounts',
-  Staff: 'Orders, calendar, albums, clients and recording payments. No deleting, no quotations or invoices',
-};
 
 export interface LoginResponse {
   token: string;
@@ -260,6 +258,53 @@ export interface LoginResponse {
   role: OwnerRole;
   /** What this owner may do (see PERMISSION_GROUPS). */
   permissions: string[];
+  /** The studio this login belongs to; null for the SuperAdmin (who picks a studio to work in). */
+  studioId: number | null;
+  studioName: string | null;
+}
+
+/** A client studio (SuperAdmin). */
+export interface Studio {
+  studioId: number;
+  studioName: string;
+  isActive: boolean;
+  createdAt: string;
+  userCount: number;
+  orderCount: number;
+}
+
+/** A new studio together with its first Owner login. */
+export interface CreateStudioRequest {
+  studioName: string;
+  ownerUsername: string;
+  ownerFullName: string;
+  ownerEmail: string | null;
+  ownerPassword: string;
+}
+
+export interface UpdateStudioRequest {
+  studioName: string;
+  isActive: boolean;
+}
+
+/** Role master row: the permissions a new login with this role starts with. */
+export interface RoleInfo {
+  roleId: number;
+  roleName: string;
+  description: string | null;
+  permissions: string[];
+  isSystem: boolean;
+  userCount: number;
+  /** null = a shared role (only the SuperAdmin changes it); a number = that studio's own role. */
+  studioId: number | null;
+}
+
+export interface SaveRoleRequest {
+  roleName: string;
+  description: string | null;
+  permissions: string[];
+  /** SuperAdmin only: a role for the studio in scope (true) or a shared one (false). */
+  forThisStudio?: boolean;
 }
 
 // ---------- Requests ----------
@@ -438,6 +483,8 @@ export interface OwnerInfo {
   createdAt: string;
   isCurrent: boolean;
   permissions: string[];
+  studioId: number | null;
+  studioName: string | null;
 }
 
 export interface CreateOwnerRequest {

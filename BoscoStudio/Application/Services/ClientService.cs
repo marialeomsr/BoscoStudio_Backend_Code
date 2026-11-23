@@ -1,4 +1,4 @@
-using BoscoStudio.Application.Common;
+﻿using BoscoStudio.Application.Common;
 using BoscoStudio.Application.Dtos;
 using BoscoStudio.Domain.Entities;
 using BoscoStudio.Infrastructure.Data;
@@ -37,7 +37,7 @@ public class ClientService(PhotoStudioDbContext db) : IClientService
 
     public async Task<ClientListDto> UpdateAsync(int clientId, SaveClientRequest r, CancellationToken ct)
     {
-        var client = await db.Clients.FindAsync([clientId], ct) ?? throw new NotFoundException("Client", clientId);
+        var client = await db.Clients.FirstOrDefaultAsync(x => x.ClientId == clientId, ct) ?? throw new NotFoundException("Client", clientId);
         await EnsureNotDuplicateAsync(r, clientId, ct);
         Apply(client, r);   // orders reference the client by id, so they show the new details immediately
         await db.SaveChangesAsync(ct);
@@ -46,7 +46,7 @@ public class ClientService(PhotoStudioDbContext db) : IClientService
 
     public async Task DeleteAsync(int clientId, CancellationToken ct)
     {
-        var client = await db.Clients.FindAsync([clientId], ct) ?? throw new NotFoundException("Client", clientId);
+        var client = await db.Clients.FirstOrDefaultAsync(x => x.ClientId == clientId, ct) ?? throw new NotFoundException("Client", clientId);
         if (await db.Orders.AnyAsync(o => o.ClientId == clientId, ct))
             throw new BusinessRuleException("This client has orders and cannot be deleted. Edit the details instead.");
         db.Clients.Remove(client);

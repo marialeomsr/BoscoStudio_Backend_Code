@@ -1,8 +1,8 @@
-namespace BoscoStudio.Application.Dtos;
+﻿namespace BoscoStudio.Application.Dtos;
 
 // ---------- Owner accounts (several people can sign in to the same studio) ----------
 
-public record OwnerDto(int OwnerId, string Username, string FullName, string? Email, string Role, DateTime CreatedAt, bool IsCurrent, IReadOnlyList<string> Permissions);
+public record OwnerDto(int OwnerId, string Username, string FullName, string? Email, string Role, DateTime CreatedAt, bool IsCurrent, IReadOnlyList<string> Permissions, int? StudioId, string? StudioName);
 
 public class CreateOwnerRequest
 {

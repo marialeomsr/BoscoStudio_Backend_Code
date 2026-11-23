@@ -7,7 +7,12 @@ import { AuthService } from './auth.service';
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const auth = inject(AuthService);
   const token = auth.token;
-  const authed = token ? req.clone({ setHeaders: { Authorization: `Bearer ${token}` } }) : req;
+  // The SuperAdmin works in one studio at a time; the API ignores this header for studio logins.
+  const studio = auth.isSuperAdmin() ? auth.studioId() : null;
+  const headers: Record<string, string> = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  if (studio) headers['X-Studio-Id'] = String(studio);
+  const authed = Object.keys(headers).length ? req.clone({ setHeaders: headers }) : req;
 
   return next(authed).pipe(
     catchError((err: HttpErrorResponse) => {

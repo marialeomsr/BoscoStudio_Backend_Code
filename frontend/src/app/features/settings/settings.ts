@@ -3,30 +3,37 @@ import { AuthService } from '../../core/auth/auth.service';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTabsModule } from '@angular/material/tabs';
 import { EventTypesSettings } from './event-types-settings';
-import { LoginLogSettings } from './login-log-settings';
 import { OwnersSettings } from './owners-settings';
 import { PackagesSettings } from './packages-settings';
+import { RolesSettings } from './roles-settings';
 import { StudioSettingsForm } from './studio-settings';
+import { StudiosSettings } from './studios-settings';
 
-/** Everything the owner configures: studio details (printed on documents), event types, and packages per event type. */
+/**
+ * Everything that is configured. Studio details, event types and packages (the options) and the studio's logins apply to the studio in
+ * scope; Studios is SuperAdmin only. A studio Owner has everything else, for their own studio only. Whoever lacks the permission does not see the tab, and the API refuses the call too.
+ */
 @Component({
   selector: 'app-settings',
-  imports: [MatIconModule, MatTabsModule, StudioSettingsForm, EventTypesSettings, PackagesSettings, OwnersSettings, LoginLogSettings],
+  imports: [MatIconModule, MatTabsModule, StudioSettingsForm, EventTypesSettings, PackagesSettings, OwnersSettings, StudiosSettings, RolesSettings],
   template: `
     <header class="page-head slate">
       <span class="ico"><mat-icon>settings</mat-icon></span>
-      <h1>Settings <span class="sub">studio details, event types, packages, owners</span></h1>
+      <h1>Settings <span class="sub">studios, roles, event types, packages, logins</span></h1>
     </header>
     <section class="panel slate">
     <mat-tab-group animationDuration="0" mat-stretch-tabs="false" mat-align-tabs="start">
+      @if (auth.isSuperAdmin()) {
+        <mat-tab label="Studios"><div class="pane"><app-studios-settings /></div></mat-tab>
+      }
       @if (auth.can('settings.manage')) {
         <mat-tab label="Studio details"><div class="pane"><app-studio-settings-form /></div></mat-tab>
         <mat-tab label="Event types"><div class="pane"><app-event-types-settings /></div></mat-tab>
         <mat-tab label="Packages"><div class="pane"><app-packages-settings /></div></mat-tab>
       }
       @if (auth.can('owners.manage')) {
-        <mat-tab label="Owners"><div class="pane"><app-owners-settings /></div></mat-tab>
-        <mat-tab label="Sign-in log"><div class="pane"><app-login-log-settings /></div></mat-tab>
+        <mat-tab label="Roles"><div class="pane"><app-roles-settings /></div></mat-tab>
+        <mat-tab label="Logins"><div class="pane"><app-owners-settings /></div></mat-tab>
       }
     </mat-tab-group>
     </section>

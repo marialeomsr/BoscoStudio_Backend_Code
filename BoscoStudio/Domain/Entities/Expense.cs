@@ -8,8 +8,11 @@ namespace BoscoStudio.Domain.Entities;
 
 [Index("ExpenseDate", Name = "IX_Expenses_ExpenseDate")]
 [Index("OrderId", Name = "IX_Expenses_OrderId")]
-public partial class Expense
+public partial class Expense : IStudioScoped
 {
+    /// <summary>The studio this row belongs to (stamped on save, filtered on every query).</summary>
+    public int StudioId { get; set; }
+
     [Key]
     public int ExpenseId { get; set; }
 

@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using BoscoStudio.Api.Middleware;
 using BoscoStudio.Application.Services;
 using BoscoStudio.Application.Validators;
@@ -21,6 +21,7 @@ builder.Services.AddDbContext<PhotoStudioDbContext>(o =>
 // ---------- Application services ----------
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<BoscoStudio.Application.Common.ICurrentUser, BoscoStudio.Application.Common.CurrentUser>();
+builder.Services.AddScoped<BoscoStudio.Application.Common.ICurrentStudio, BoscoStudio.Application.Common.CurrentStudio>();
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<DocumentNumberGenerator>();
 builder.Services.AddScoped<IOrderService, OrderService>();
@@ -33,10 +34,12 @@ builder.Services.AddScoped<ILookupService, LookupService>();
 builder.Services.AddScoped<ICatalogService, CatalogService>();
 builder.Services.AddScoped<IClientService, ClientService>();
 builder.Services.AddScoped<IOwnerService, OwnerService>();
+builder.Services.AddScoped<IStudioService, StudioService>();
+builder.Services.AddScoped<IRoleService, RoleService>();
 builder.Services.AddScoped<IStudioSettingsService, StudioSettingsService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 
-// ---------- Auth: single-owner JWT, everything locked unless [AllowAnonymous] ----------
+// ---------- Auth: JWT (studio logins are tied to one studio; the SuperAdmin picks a studio per request), everything locked unless [AllowAnonymous] ----------
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 var jwt = builder.Configuration.GetSection("Jwt").Get<JwtOptions>()!;
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -64,10 +67,18 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 }
                 // The account must still exist AND still have the role the token was issued with
                 // (a removed or re-roled owner is signed out and logs in again with the current role).
-                var current = await db.OwnerAccounts.Where(a => a.OwnerId == ownerId).Select(a => new { a.Role, a.Permissions }).FirstOrDefaultAsync();
+                var current = await db.OwnerAccounts.Where(a => a.OwnerId == ownerId).Select(a => new
+                {
+                    a.Role, a.Permissions, a.StudioId,
+                    RoleDefaults = db.Roles.IgnoreQueryFilters().Where(r => r.RoleName == a.Role).Select(r => r.Permissions).FirstOrDefault(),
+                    StudioActive = a.StudioId == null || db.Studios.Any(s => s.StudioId == a.StudioId && s.IsActive),
+                }).FirstOrDefaultAsync();
                 string tokenPermissions = string.Join(',', ctx.Principal!.FindAll(BoscoStudio.Application.Common.AppPermissions.ClaimType).Select(c => c.Value).Order());
-                if (current is null || current.Role != roleClaim
-                    || string.Join(',', BoscoStudio.Application.Common.AppPermissions.Effective(current.Role, current.Permissions)) != tokenPermissions)
+                string? studioClaim = ctx.Principal!.FindFirst(BoscoStudio.Application.Common.CurrentStudio.ClaimType)?.Value;
+                // Also ends the session when the role's permissions were edited, the login moved studio, or its studio was switched off.
+                if (current is null || current.Role != roleClaim || !current.StudioActive
+                    || current.StudioId?.ToString() != studioClaim
+                    || string.Join(',', BoscoStudio.Application.Common.AppPermissions.Effective(current.Role, current.RoleDefaults, current.Permissions)) != tokenPermissions)
                     ctx.Fail("Owner account changed or removed.");
             }
         };

@@ -6,9 +6,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BoscoStudio.Domain.Entities;
 
-[Index("EventTypeName", Name = "UQ_EventTypes_Name", IsUnique = true)]
-public partial class EventType
+[Index("StudioId", "EventTypeName", Name = "UQ_EventTypes_Name", IsUnique = true)]
+public partial class EventType : IStudioScoped
 {
+    /// <summary>The studio this row belongs to (stamped on save, filtered on every query).</summary>
+    public int StudioId { get; set; }
+
     [Key]
     public int EventTypeId { get; set; }
 

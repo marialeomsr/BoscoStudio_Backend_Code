@@ -1,19 +1,18 @@
-using BoscoStudio.Application.Dtos;
+﻿using BoscoStudio.Application.Dtos;
 
 namespace BoscoStudio.Application.Common;
 
 /// <summary>
-/// Owner roles. Capabilities:
-/// Owner roles: Admin (everything, always) and the Manager / Staff starting presets. What each owner can actually do is in AppPermissions.
+/// Role names the code itself relies on. The full list of roles (and each role's default permissions) lives in the Roles master table,
+/// which the SuperAdmin maintains; SuperAdmin and Owner are system roles and always exist.
 /// </summary>
 public static class Roles
 {
-    public const string Admin = "Admin";
-    public const string Manager = "Manager";
+    /// <summary>Platform administrator: no studio of their own, creates studios and logins, sees every studio, owns the options and roles.</summary>
+    public const string SuperAdmin = "SuperAdmin";
+    /// <summary>The studio's owner login (what used to be "Admin").</summary>
+    public const string Owner = "Owner";
     public const string Staff = "Staff";
-
-
-    public static readonly string[] All = [Admin, Manager, Staff];
 }
 
 /// <summary>How tax is printed on documents. The amount is identical either way.</summary>
@@ -38,3 +37,4 @@ public static class TaxSplits
         return [new TaxLineDto("CGST", cgstRate, cgst), new TaxLineDto("SGST", percent - cgstRate, taxAmount - cgst)];
     }
 }
+

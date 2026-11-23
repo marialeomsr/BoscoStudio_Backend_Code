@@ -8,8 +8,11 @@ namespace BoscoStudio.Domain.Entities;
 
 [Index("AlbumStage", Name = "IX_Albums_AlbumStage")]
 [Index("OrderId", Name = "IX_Albums_OrderId")]
-public partial class Album
+public partial class Album : IStudioScoped
 {
+    /// <summary>The studio this row belongs to (stamped on save, filtered on every query).</summary>
+    public int StudioId { get; set; }
+
     [Key]
     public int AlbumId { get; set; }
 

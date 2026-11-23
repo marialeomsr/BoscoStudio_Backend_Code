@@ -1,4 +1,4 @@
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 using BoscoStudio.Application.Common;
 using BoscoStudio.Application.Dtos;
 using FluentValidation;
@@ -222,7 +222,7 @@ public class CreateOwnerRequestValidator : AbstractValidator<CreateOwnerRequest>
         RuleFor(x => x.FullName).PersonName(100);
         RuleFor(x => x.Email).OptionalEmail();
         RuleFor(x => x.Password).StrongPassword();
-        RuleFor(x => x.Role).Must(Roles.All.Contains).WithMessage("Role must be Admin, Manager or Staff.");
+        RuleFor(x => x.Role).NotEmpty().MaximumLength(30);   // must exist in the Roles master (checked by OwnerService)
         RuleFor(x => x.Permissions).AllKnownPermissions();
     }
 }
@@ -242,7 +242,7 @@ public class UpdateOwnerRequestValidator : AbstractValidator<UpdateOwnerRequest>
 public class UpdateOwnerRoleRequestValidator : AbstractValidator<UpdateOwnerRoleRequest>
 {
     public UpdateOwnerRoleRequestValidator() =>
-        RuleFor(x => x.Role).Must(Roles.All.Contains).WithMessage("Role must be Admin, Manager or Staff.");
+        RuleFor(x => x.Role).NotEmpty().MaximumLength(30);
 }
 
 public class UpdateProfileRequestValidator : AbstractValidator<UpdateProfileRequest>
@@ -326,5 +326,32 @@ public class UpdateStudioSettingsRequestValidator : AbstractValidator<UpdateStud
         RuleFor(x => x.DefaultTerms).MaximumLength(4000);
         RuleFor(x => x.BankDetails).MaximumLength(500);
         RuleFor(x => x.LogoUrl).HttpUrl(300);
+    }
+}
+
+public class CreateStudioRequestValidator : AbstractValidator<CreateStudioRequest>
+{
+    public CreateStudioRequestValidator()
+    {
+        RuleFor(x => x.StudioName).PersonName(150);
+        RuleFor(x => x.OwnerUsername).Username();
+        RuleFor(x => x.OwnerFullName).PersonName(100);
+        RuleFor(x => x.OwnerEmail).OptionalEmail();
+        RuleFor(x => x.OwnerPassword).StrongPassword();
+    }
+}
+
+public class UpdateStudioRequestValidator : AbstractValidator<UpdateStudioRequest>
+{
+    public UpdateStudioRequestValidator() => RuleFor(x => x.StudioName).PersonName(150);
+}
+
+public class SaveRoleRequestValidator : AbstractValidator<SaveRoleRequest>
+{
+    public SaveRoleRequestValidator()
+    {
+        RuleFor(x => x.RoleName).NotEmpty().Length(2, 30).Matches(@"^[\p{L}\p{N} _-]+$").WithMessage("Use letters, numbers, spaces, - and _ only.");
+        RuleFor(x => x.Description).MaximumLength(200);
+        RuleFor(x => x.Permissions).AllKnownPermissions();
     }
 }

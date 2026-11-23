@@ -116,7 +116,7 @@ export class Login {
   protected readonly show = signal(false);
   protected readonly error = signal('');
   /** Studio name and tagline come from Settings > Studio details; these are shown until they load (or if the call fails). */
-  protected readonly studioName = signal('Bosco Studio');
+  protected readonly studioName = signal('Photo Studio Manager');
   protected readonly tagline = signal('Bookings, payments and deliveries, all in one place.');
 
   protected readonly form = new FormGroup({

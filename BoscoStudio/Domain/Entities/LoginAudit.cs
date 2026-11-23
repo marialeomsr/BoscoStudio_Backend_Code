@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,6 +12,9 @@ public partial class LoginAudit
 
     /// <summary>Null when the username entered does not exist.</summary>
     public int? OwnerId { get; set; }
+
+    /// <summary>The studio of that login (null for the SuperAdmin or an unknown username).</summary>
+    public int? StudioId { get; set; }
 
     [StringLength(50)]
     public string Username { get; set; } = null!;

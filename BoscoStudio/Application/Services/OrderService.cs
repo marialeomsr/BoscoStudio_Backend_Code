@@ -1,4 +1,4 @@
-using BoscoStudio.Application.Common;
+﻿using BoscoStudio.Application.Common;
 using BoscoStudio.Application.Dtos;
 using BoscoStudio.Application.Mapping;
 using BoscoStudio.Domain.Entities;
@@ -63,7 +63,7 @@ public class OrderService(PhotoStudioDbContext db, DocumentNumberGenerator numbe
         await EnsureNoDoubleBookingAsync(request.Slots, ignoreOrderId: null, request.AllowOverlap, ct);
 
         var client = request.ClientId is int clientId
-            ? await db.Clients.FindAsync([clientId], ct) ?? throw new NotFoundException("Client", clientId)
+            ? await db.Clients.FirstOrDefaultAsync(x => x.ClientId == clientId, ct) ?? throw new NotFoundException("Client", clientId)
             : NewClient(request.NewClient!);
 
         var order = new Order
@@ -200,7 +200,7 @@ public class OrderService(PhotoStudioDbContext db, DocumentNumberGenerator numbe
     private async Task ApplyEditableFieldsAsync(Order order, UpdateOrderRequest r, CancellationToken ct)
     {
         var package = r.PackageId is int pid
-            ? await db.Packages.FindAsync([pid], ct) ?? throw new NotFoundException("Package", pid)
+            ? await db.Packages.FirstOrDefaultAsync(x => x.PackageId == pid, ct) ?? throw new NotFoundException("Package", pid)
             : null;
 
         // Event type comes from the owner-managed EventTypes table (an inactive type is fine if the order already uses it).

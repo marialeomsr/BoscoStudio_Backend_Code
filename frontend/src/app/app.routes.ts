@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { adminGuard, authGuard } from './core/auth/auth.guard';
+import { adminGuard, authGuard, superAdminGuard } from './core/auth/auth.guard';
 import { Shell } from './core/layout/shell';
 
 /** Every feature is lazy-loaded; only /login is reachable without a token. */
@@ -23,6 +23,8 @@ export const routes: Routes = [
       { path: 'reports', loadComponent: () => import('./features/reports/reports').then((m) => m.Reports) },
       { path: 'invoices', loadComponent: () => import('./features/invoices/invoice-list').then((m) => m.InvoiceList) },
       { path: 'clients', loadComponent: () => import('./features/clients/clients').then((m) => m.Clients) },
+      { path: 'account', loadComponent: () => import('./features/settings/account-page').then((m) => m.AccountPage) },
+      { path: 'login-report', canActivate: [superAdminGuard], loadComponent: () => import('./features/login-report/login-report').then((m) => m.LoginReport) },
       { path: 'settings', canActivate: [adminGuard], loadComponent: () => import('./features/settings/settings').then((m) => m.Settings) },
       { path: 'invoices/:id', loadComponent: () => import('./features/invoices/invoice-view').then((m) => m.InvoiceView) },
     ],

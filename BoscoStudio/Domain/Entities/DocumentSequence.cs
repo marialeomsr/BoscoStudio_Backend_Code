@@ -6,9 +6,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BoscoStudio.Domain.Entities;
 
-[PrimaryKey("DocumentType", "SeqYear")]
-public partial class DocumentSequence
+[PrimaryKey("StudioId", "DocumentType", "SeqYear")]
+public partial class DocumentSequence : IStudioScoped
 {
+    /// <summary>The studio this row belongs to (stamped on save, filtered on every query).</summary>
+    public int StudioId { get; set; }
+
     [Key]
     [StringLength(10)]
     public string DocumentType { get; set; } = null!;

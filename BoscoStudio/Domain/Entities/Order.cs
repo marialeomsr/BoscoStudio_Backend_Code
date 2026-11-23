@@ -9,9 +9,12 @@ namespace BoscoStudio.Domain.Entities;
 [Index("ClientId", Name = "IX_Orders_ClientId")]
 [Index("EventDate", Name = "IX_Orders_EventDate")]
 [Index("OrderStatus", Name = "IX_Orders_OrderStatus")]
-[Index("OrderNumber", Name = "UQ_Orders_OrderNumber", IsUnique = true)]
-public partial class Order
+[Index("StudioId", "OrderNumber", Name = "UQ_Orders_OrderNumber", IsUnique = true)]
+public partial class Order : IStudioScoped
 {
+    /// <summary>The studio this row belongs to (stamped on save, filtered on every query).</summary>
+    public int StudioId { get; set; }
+
     [Key]
     public int OrderId { get; set; }
 

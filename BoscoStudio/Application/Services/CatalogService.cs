@@ -1,4 +1,4 @@
-using BoscoStudio.Application.Common;
+﻿using BoscoStudio.Application.Common;
 using BoscoStudio.Application.Dtos;
 using BoscoStudio.Domain.Entities;
 using BoscoStudio.Infrastructure.Data;
@@ -92,7 +92,7 @@ public class CatalogService(PhotoStudioDbContext db) : ICatalogService
 
     public async Task<PackageDto> UpdatePackageAsync(int id, SavePackageRequest r, CancellationToken ct)
     {
-        var p = await db.Packages.FindAsync([id], ct) ?? throw new NotFoundException("Package", id);
+        var p = await db.Packages.FirstOrDefaultAsync(x => x.PackageId == id, ct) ?? throw new NotFoundException("Package", id);
         await ValidatePackageAsync(r, id, ct);
         Apply(p, r);   // existing orders keep their own PackageAmount; price changes only affect new orders
         await db.SaveChangesAsync(ct);
@@ -101,7 +101,7 @@ public class CatalogService(PhotoStudioDbContext db) : ICatalogService
 
     public async Task DeletePackageAsync(int id, CancellationToken ct)
     {
-        var p = await db.Packages.FindAsync([id], ct) ?? throw new NotFoundException("Package", id);
+        var p = await db.Packages.FirstOrDefaultAsync(x => x.PackageId == id, ct) ?? throw new NotFoundException("Package", id);
         if (await db.Orders.AnyAsync(o => o.PackageId == id, ct))
             throw new BusinessRuleException("This package is used by existing orders. Deactivate it instead of deleting.");
         if (await db.Albums.AnyAsync(a => a.PackageId == id, ct))

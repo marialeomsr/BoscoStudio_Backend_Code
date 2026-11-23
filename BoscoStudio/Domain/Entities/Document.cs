@@ -7,10 +7,13 @@ using Microsoft.EntityFrameworkCore;
 namespace BoscoStudio.Domain.Entities;
 
 [Index("OrderId", Name = "IX_Documents_OrderId")]
-[Index("DocumentNumber", Name = "UQ_Documents_Number", IsUnique = true)]
+[Index("StudioId", "DocumentNumber", Name = "UQ_Documents_Number", IsUnique = true)]
 [Index("OrderId", "DocumentType", Name = "UX_Documents_OrderId_Type", IsUnique = true)]
-public partial class Document
+public partial class Document : IStudioScoped
 {
+    /// <summary>The studio this row belongs to (stamped on save, filtered on every query).</summary>
+    public int StudioId { get; set; }
+
     [Key]
     public int DocumentId { get; set; }
 

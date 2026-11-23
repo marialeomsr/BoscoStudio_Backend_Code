@@ -90,10 +90,12 @@ body {
 .tile.zero:not(.on) { opacity: .6; }
 
 /* ---- Print / PDF: show only the document, hide app chrome ---- */
+/* No page margin => the browser has no room for its own header / footer (page title and web address). The sheet supplies the margin. */
+@page { size: A4; margin: 0; }
 @media print {
   .topbar, .bottom-nav, mat-sidenav, .no-print { display: none !important; }
   mat-sidenav-container, mat-sidenav-content { margin: 0 !important; padding: 0 !important; overflow: visible !important; height: auto !important; }
   app-shell { display: block !important; height: auto !important; }
   body { background: #fff !important; }
-  .sheet { box-shadow: none !important; border-radius: 0 !important; max-width: none !important; padding: 0 !important; }
+  .sheet { box-shadow: none !important; border-radius: 0 !important; max-width: none !important; padding: 14mm 15mm !important; }
 }

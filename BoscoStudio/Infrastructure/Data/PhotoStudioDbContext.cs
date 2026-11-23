@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using BoscoStudio.Application.Common;
 using BoscoStudio.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -7,10 +8,16 @@ namespace BoscoStudio.Infrastructure.Data;
 
 public partial class PhotoStudioDbContext : DbContext
 {
-    public PhotoStudioDbContext(DbContextOptions<PhotoStudioDbContext> options)
+    private readonly ICurrentStudio _studio;
+
+    public PhotoStudioDbContext(DbContextOptions<PhotoStudioDbContext> options, ICurrentStudio studio)
         : base(options)
     {
+        _studio = studio;
     }
+
+    /// <summary>The studio the current request works in (read by the query filters; evaluated per query, per context).</summary>
+    private int? CurrentStudioId => _studio.StudioId;
 
     public virtual DbSet<Album> Albums { get; set; }
 
@@ -41,6 +48,10 @@ public partial class PhotoStudioDbContext : DbContext
     public virtual DbSet<Payment> Payments { get; set; }
 
     public virtual DbSet<StudioSetting> StudioSettings { get; set; }
+
+    public virtual DbSet<Studio> Studios { get; set; }
+
+    public virtual DbSet<Role> Roles { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -120,8 +131,8 @@ public partial class PhotoStudioDbContext : DbContext
                 .HasConstraintName("FK_Orders_Clients");
 
             entity.HasOne(d => d.EventTypeNavigation).WithMany(p => p.Orders)
-                .HasPrincipalKey(p => p.EventTypeName)
-                .HasForeignKey(d => d.EventType)
+                .HasPrincipalKey(p => new { p.StudioId, p.EventTypeName })
+                .HasForeignKey(d => new { d.StudioId, d.EventType })
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Orders_EventTypes");
 
@@ -136,7 +147,7 @@ public partial class PhotoStudioDbContext : DbContext
         modelBuilder.Entity<OwnerAccount>(entity =>
         {
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
-            entity.Property(e => e.Role).HasDefaultValue("Admin");
+            entity.Property(e => e.Role).HasDefaultValue("Staff");
         });
 
         modelBuilder.Entity<Package>(entity =>
@@ -144,8 +155,8 @@ public partial class PhotoStudioDbContext : DbContext
             entity.Property(e => e.IsActive).HasDefaultValue(true);
 
             entity.HasOne(d => d.EventTypeNavigation).WithMany(p => p.Packages)
-                .HasPrincipalKey(p => p.EventTypeName)
-                .HasForeignKey(d => d.EventType)
+                .HasPrincipalKey(p => new { p.StudioId, p.EventTypeName })
+                .HasForeignKey(d => new { d.StudioId, d.EventType })
                 .HasConstraintName("FK_Packages_EventTypes");
         });
 
@@ -166,7 +177,46 @@ public partial class PhotoStudioDbContext : DbContext
             entity.Property(e => e.QuotationPrefix).HasDefaultValue("QTN");
         });
 
+        modelBuilder.Entity<Studio>(entity =>
+        {
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
+        });
+
+        modelBuilder.Entity<Role>(entity =>
+        {
+            entity.HasIndex(e => e.RoleName).IsUnique();
+            // shared roles are visible to everyone; a studio's own roles only to that studio
+            entity.HasQueryFilter(e => e.StudioId == null || e.StudioId == CurrentStudioId);
+        });
+
+        // Multi-studio: every studio-owned table is filtered to the current studio, so no query can read another studio's rows.
+        Scope<Album>(modelBuilder); Scope<Client>(modelBuilder); Scope<Deliverable>(modelBuilder); Scope<Document>(modelBuilder);
+        Scope<DocumentLine>(modelBuilder); Scope<EventType>(modelBuilder); Scope<Expense>(modelBuilder); Scope<Order>(modelBuilder);
+        Scope<OrderEventSlot>(modelBuilder); Scope<Package>(modelBuilder); Scope<Payment>(modelBuilder); Scope<StudioSetting>(modelBuilder);
+
         OnModelCreatingPartial(modelBuilder);
+    }
+
+    private void Scope<T>(ModelBuilder modelBuilder) where T : class, IStudioScoped =>
+        modelBuilder.Entity<T>().HasQueryFilter(e => e.StudioId == CurrentStudioId);
+
+    /// <summary>New rows get the current studio (unless the caller set one on purpose, e.g. when the SuperAdmin creates a studio).</summary>
+    private void StampStudio()
+    {
+        foreach (var entry in ChangeTracker.Entries<IStudioScoped>().Where(e => e.State == EntityState.Added && e.Entity.StudioId == 0))
+            entry.Entity.StudioId = _studio.StudioId ?? throw new BusinessRuleException("Choose a studio first.");
+    }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        StampStudio();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        StampStudio();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
     }
 
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder);

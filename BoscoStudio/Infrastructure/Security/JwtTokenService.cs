@@ -1,4 +1,4 @@
-using System.IdentityModel.Tokens.Jwt;
+﻿using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using BoscoStudio.Application.Common;
@@ -46,24 +46,37 @@ public class AuthService(
 
         if (owner is null || !ok)
         {
-            await RecordAsync(owner?.OwnerId, owner?.Username ?? request.Username, LoginEvents.LoginFailed, ct);
+            await RecordAsync(owner?.OwnerId, owner?.StudioId, owner?.Username ?? request.Username, LoginEvents.LoginFailed, ct);
             return null;
         }
-        await RecordAsync(owner.OwnerId, owner.Username, LoginEvents.Login, ct);
-        return Issue(owner);
+        var studio = owner.StudioId is int sid ? await db.Studios.AsNoTracking().FirstOrDefaultAsync(s => s.StudioId == sid, ct) : null;
+        if (studio is { IsActive: false })
+        {
+            await RecordAsync(owner, LoginEvents.LoginFailed, ct);
+            throw new BusinessRuleException("This studio's access is switched off. Please contact support.");
+        }
+        await RecordAsync(owner, LoginEvents.Login, ct);
+        return await IssueAsync(owner, studio?.StudioName, ct);
     }
 
-    public Task LogoutAsync(int ownerId, string username, CancellationToken ct) =>
-        RecordAsync(ownerId, username, LoginEvents.Logout, ct);
+    public async Task LogoutAsync(int ownerId, string username, CancellationToken ct)
+    {
+        int? studioId = await db.OwnerAccounts.Where(o => o.OwnerId == ownerId).Select(o => o.StudioId).FirstOrDefaultAsync(ct);
+        await RecordAsync(ownerId, studioId, username, LoginEvents.Logout, ct);
+    }
+
+    private Task RecordAsync(OwnerAccount owner, string eventType, CancellationToken ct) =>
+        RecordAsync(owner.OwnerId, owner.StudioId, owner.Username, eventType, ct);
 
     /// <summary>Appends one sign-in event. Text from the client is trimmed to the column sizes so a long value can't break the insert.</summary>
-    private async Task RecordAsync(int? ownerId, string username, string eventType, CancellationToken ct)
+    private async Task RecordAsync(int? ownerId, int? studioId, string username, string eventType, CancellationToken ct)
     {
         static string? Cut(string? s, int max) => string.IsNullOrEmpty(s) ? null : s.Length <= max ? s : s[..max];
         var ctx = http.HttpContext;
         var audit = new LoginAudit
         {
             OwnerId = ownerId,
+            StudioId = studioId,
             Username = Cut(username, 50) ?? "",
             EventType = eventType,
             OccurredAt = DateTime.UtcNow,
@@ -95,12 +108,13 @@ public class AuthService(
 
     public async Task<BrandingDto> GetBrandingAsync(CancellationToken ct)
     {
-        var s = await db.StudioSettings.AsNoTracking().FirstOrDefaultAsync(ct);
-        return new BrandingDto(s?.StudioName ?? "Studio", s?.Tagline);
+        // Public page: nobody is signed in, so no studio is known yet. The studio's own name shows after sign-in.
+        await Task.CompletedTask;
+        return new BrandingDto("Photo Studio Manager", "Orders, albums and payments for your studio");
     }
 
     public async Task<OwnerDto> GetProfileAsync(int ownerId, CancellationToken ct) =>
-        ToDto(await FindAsync(ownerId, ct), ownerId);
+        await ToDtoAsync(await FindAsync(ownerId, ct), ownerId, ct);
 
     public async Task<LoginResponse> UpdateProfileAsync(int ownerId, UpdateProfileRequest r, CancellationToken ct)
     {
@@ -116,24 +130,33 @@ public class AuthService(
         owner.FullName = r.FullName.Trim();
         owner.Email = string.IsNullOrWhiteSpace(r.Email) ? null : r.Email.Trim();
         await db.SaveChangesAsync(ct);
-        return Issue(owner);
+        return await IssueAsync(owner, null, ct);
     }
 
     private async Task<OwnerAccount> FindAsync(int ownerId, CancellationToken ct) =>
         await db.OwnerAccounts.FirstOrDefaultAsync(o => o.OwnerId == ownerId, ct) ?? throw new NotFoundException("Owner", ownerId);
 
-    private static OwnerDto ToDto(OwnerAccount o, int currentOwnerId) =>
-        new(o.OwnerId, o.Username, o.FullName, o.Email, o.Role, o.CreatedAt, o.OwnerId == currentOwnerId, AppPermissions.Effective(o.Role, o.Permissions));
+    private async Task<string?> RoleDefaultsAsync(string role, CancellationToken ct) =>
+        await db.Roles.IgnoreQueryFilters().AsNoTracking().Where(r => r.RoleName == role).Select(r => r.Permissions).FirstOrDefaultAsync(ct);
 
-    private LoginResponse Issue(OwnerAccount owner)
+    private async Task<string?> StudioNameAsync(int? studioId, CancellationToken ct) =>
+        studioId is int id ? await db.Studios.AsNoTracking().Where(s => s.StudioId == id).Select(s => s.StudioName).FirstOrDefaultAsync(ct) : null;
+
+    private async Task<OwnerDto> ToDtoAsync(OwnerAccount o, int currentOwnerId, CancellationToken ct) =>
+        new(o.OwnerId, o.Username, o.FullName, o.Email, o.Role, o.CreatedAt, o.OwnerId == currentOwnerId,
+            AppPermissions.Effective(o.Role, await RoleDefaultsAsync(o.Role, ct), o.Permissions), o.StudioId, await StudioNameAsync(o.StudioId, ct));
+
+    private async Task<LoginResponse> IssueAsync(OwnerAccount owner, string? studioName, CancellationToken ct)
     {
+        studioName ??= await StudioNameAsync(owner.StudioId, ct);
         var expires = DateTime.UtcNow.AddMinutes(_jwt.ExpiryMinutes);
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwt.SigningKey));
-        var permissions = AppPermissions.Effective(owner.Role, owner.Permissions);
+        var permissions = AppPermissions.Effective(owner.Role, await RoleDefaultsAsync(owner.Role, ct), owner.Permissions);
         var claims = new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, owner.OwnerId.ToString()), new(ClaimTypes.Name, owner.Username), new(ClaimTypes.Role, owner.Role),
         };
+        if (owner.StudioId is int studioId) claims.Add(new Claim(CurrentStudio.ClaimType, studioId.ToString()));
         claims.AddRange(permissions.Select(p => new Claim(AppPermissions.ClaimType, p)));
         var token = new JwtSecurityToken(
             _jwt.Issuer, _jwt.Audience,
@@ -141,6 +164,6 @@ public class AuthService(
             expires: expires,
             signingCredentials: new SigningCredentials(key, SecurityAlgorithms.HmacSha256));
 
-        return new LoginResponse(new JwtSecurityTokenHandler().WriteToken(token), expires, owner.FullName, owner.Role, permissions);
+        return new LoginResponse(new JwtSecurityTokenHandler().WriteToken(token), expires, owner.FullName, owner.Role, permissions, owner.StudioId, studioName);
     }
 }

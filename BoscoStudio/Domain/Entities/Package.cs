@@ -6,9 +6,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BoscoStudio.Domain.Entities;
 
-[Index("PackageName", Name = "UQ_Packages_Name", IsUnique = true)]
-public partial class Package
+[Index("StudioId", "PackageName", Name = "UQ_Packages_Name", IsUnique = true)]
+public partial class Package : IStudioScoped
 {
+    /// <summary>The studio this row belongs to (stamped on save, filtered on every query).</summary>
+    public int StudioId { get; set; }
+
     [Key]
     public int PackageId { get; set; }
 

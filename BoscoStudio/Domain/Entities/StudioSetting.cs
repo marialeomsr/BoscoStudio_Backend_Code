@@ -6,8 +6,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BoscoStudio.Domain.Entities;
 
-public partial class StudioSetting
+public partial class StudioSetting : IStudioScoped
 {
+    /// <summary>The studio this row belongs to (stamped on save, filtered on every query).</summary>
+    public int StudioId { get; set; }
+
     [Key]
     public int StudioSettingsId { get; set; }
 

@@ -1,10 +1,10 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 
 namespace BoscoStudio.Application.Common;
 
 /// <summary>
-/// What an owner may do. Each owner has their own set; the role (Manager / Staff) is just the starting preset
-/// that a new owner gets, and that an Admin can then adjust per person. Admins always have everything.
+/// What a login may do. Each login has their own set; the role (Roles master table) is the default set a new login gets,
+/// which the SuperAdmin can then adjust per person. The SuperAdmin always has everything.
 /// Viewing (orders, calendar, albums, clients, payments, dashboard) is open to every signed-in owner.
 /// </summary>
 public static class AppPermissions
@@ -29,34 +29,24 @@ public static class AppPermissions
         ClientsEdit, ClientsDelete, DocumentsManage, SettingsManage, OwnersManage,
     ];
 
-    private static readonly string[] StaffPreset = [OrdersEdit, PaymentsRecord, AlbumsEdit, ClientsEdit];
-
-    private static readonly string[] ManagerPreset =
-        [OrdersEdit, OrdersDelete, PaymentsRecord, PaymentsDelete, AlbumsEdit, AlbumsDelete, ClientsEdit, ClientsDelete, DocumentsManage];
-
     public static string Policy(string permission) => $"perm:{permission}";
 
-    /// <summary>The starting set for a role (Admin = everything).</summary>
-    public static string[] ForRole(string role) => role switch
-    {
-        Roles.Admin => All,
-        Roles.Manager => ManagerPreset,
-        _ => StaffPreset,
-    };
-
-    /// <summary>What the owner can actually do: everything for an Admin, else their saved set, else the role's preset. Sorted.</summary>
-    public static string[] Effective(string role, string? stored)
-    {
-        if (role == Roles.Admin) return All.Order().ToArray();
-        if (stored is null) return ForRole(role).Order().ToArray();
-        return stored.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+    /// <summary>Splits a stored comma-separated set into known, distinct, sorted permissions.</summary>
+    public static string[] Parse(string? stored) =>
+        (stored ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Where(All.Contains).Distinct().Order().ToArray();
-    }
 
-    /// <summary>Column value for a chosen set (null = "use the role's preset").</summary>
+    /// <summary>
+    /// What the owner can actually do: everything for the SuperAdmin, else their own saved set, else the role's default set
+    /// (<paramref name="roleDefaults"/>, from the Roles master table). Sorted.
+    /// </summary>
+    public static string[] Effective(string role, string? roleDefaults, string? stored) =>
+        role == Roles.SuperAdmin ? All.Order().ToArray() : Parse(stored ?? roleDefaults);
+
+    /// <summary>Column value for a chosen set (null = "use the role's default").</summary>
     public static string? Serialize(IEnumerable<string>? permissions) =>
         permissions is null ? null : string.Join(',', permissions.Where(All.Contains).Distinct().Order());
 }
-
 /// <summary>[RequirePermission(AppPermissions.OrdersDelete)]: the signed-in owner must have that permission.</summary>
 public class RequirePermissionAttribute(string permission) : AuthorizeAttribute(AppPermissions.Policy(permission));
+

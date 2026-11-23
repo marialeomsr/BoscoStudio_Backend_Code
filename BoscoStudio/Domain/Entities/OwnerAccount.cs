@@ -27,10 +27,13 @@ public partial class OwnerAccount
     [Precision(0)]
     public DateTime CreatedAt { get; set; }
 
-    [StringLength(10)]
+    [StringLength(30)]
     public string Role { get; set; } = null!;
 
     /// <summary>Comma-separated permissions (see AppPermissions). Null = the role's preset.</summary>
     [StringLength(500)]
     public string? Permissions { get; set; }
+
+    /// <summary>The studio this login belongs to. Null = SuperAdmin (every studio).</summary>
+    public int? StudioId { get; set; }
 }

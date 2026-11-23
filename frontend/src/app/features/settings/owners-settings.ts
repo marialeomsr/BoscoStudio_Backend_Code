@@ -11,24 +11,24 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Observable } from 'rxjs';
 import { StudioApi } from '../../core/api/studio-api';
-import { OWNER_ROLES, OwnerInfo, OwnerRole, PERMISSION_GROUPS, ROLE_HELP } from '../../core/models/studio.models';
+import { OwnerInfo, OwnerRole, PERMISSION_GROUPS, RoleInfo, SUPER_ADMIN } from '../../core/models/studio.models';
 import { describeError } from '../../shared/api-error';
 import { ConfirmDialog } from '../../shared/components/confirm-dialog';
 import { InputFilter } from '../../shared/input-filter';
 import { AutoError, email, personName, strongPassword, username } from '../../shared/validators';
 
-/** Everyone who can sign in, and what each role may do. Admin only. */
+/** The logins (owner / staff) of the studio in scope, and what each may do. Roles come from the Roles master table. */
 @Component({
   selector: 'app-owners-settings',
   imports: [ReactiveFormsModule, InputFilter, AutoError, DatePipe, MatButtonModule, MatCheckboxModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule],
   template: `
     <div class="head">
-      <p class="intro">Each person signs in with their own username and password. The role decides what they can do.</p>
-      <button mat-flat-button (click)="adding.set(!adding())"><mat-icon>person_add</mat-icon> Add owner</button>
+      <p class="intro">Each person of this studio signs in with their own username and password. The role decides what they can do. Studios only ever see their own logins.</p>
+      <button mat-flat-button (click)="adding.set(!adding())"><mat-icon>person_add</mat-icon> Add login</button>
     </div>
 
     <ul class="roles">
-      @for (r of roles; track r) { <li><strong>{{ r }}</strong> {{ roleHelp[r] }}</li> }
+      @for (r of roles(); track r.roleId) { <li><strong>{{ r.roleName }}</strong> {{ r.description }}</li> }
     </ul>
 
     @if (adding()) {
@@ -42,11 +42,11 @@ import { AutoError, email, personName, strongPassword, username } from '../../sh
         <mat-form-field appearance="outline"><mat-label>Password</mat-label><input matInput type="password" formControlName="password" autocomplete="new-password" />
           <mat-hint>8+ characters with a letter and a number</mat-hint><mat-error auto></mat-error></mat-form-field>
         <mat-form-field appearance="outline"><mat-label>Role</mat-label>
-          <mat-select formControlName="role">@for (r of roles; track r) { <mat-option [value]="r">{{ r }}</mat-option> }</mat-select>
-          <mat-hint>{{ roleHelp[form.controls.role.value] }}</mat-hint></mat-form-field>
+          <mat-select formControlName="role">@for (r of roles(); track r.roleId) { <mat-option [value]="r.roleName">{{ r.roleName }}</mat-option> }</mat-select>
+          <mat-hint>{{ roleHelp(form.controls.role.value) }}</mat-hint></mat-form-field>
         <div class="row-actions full">
           <button mat-button type="button" (click)="adding.set(false)">Cancel</button>
-          <button mat-flat-button type="submit" [disabled]="form.invalid || busy()">Create owner</button>
+          <button mat-flat-button type="submit" [disabled]="form.invalid || busy()">Create login</button>
         </div>
       </form>
     }
@@ -64,15 +64,11 @@ import { AutoError, email, personName, strongPassword, username } from '../../sh
           <mat-hint>8+ characters with a letter and a number</mat-hint><mat-error auto></mat-error></mat-form-field>
         <fieldset class="perms full">
           <legend>What {{ editName() }} can do</legend>
-          @if (editIsAdmin()) {
-            <p class="intro">Admins always have every permission.</p>
-          } @else {
-            <p class="intro">Everyone can view orders, the calendar, albums, clients and payments. Tick what they may change.</p>
-          }
+          <p class="intro">Everyone can view orders, the calendar, albums, clients and payments. Tick what they may change.</p>
           @for (g of permissionGroups; track g.title) {
             <div class="group"><strong>{{ g.title }}</strong>
               @for (p of g.items; track p.key) {
-                <mat-checkbox [checked]="editIsAdmin() || editPerms().has(p.key)" [disabled]="editIsAdmin()" (change)="togglePermission(p.key, $event.checked)">{{ p.label }}</mat-checkbox>
+                <mat-checkbox [checked]="editPerms().has(p.key)" (change)="togglePermission(p.key, $event.checked)">{{ p.label }}</mat-checkbox>
               }
             </div>
           }
@@ -96,12 +92,12 @@ import { AutoError, email, personName, strongPassword, username } from '../../sh
             <mat-form-field appearance="outline" subscriptSizing="dynamic" class="rolepick">
               <mat-label>Role</mat-label>
               <mat-select [value]="o.role" (selectionChange)="changeRole(o, $event.value)">
-                @for (r of roles; track r) { <mat-option [value]="r">{{ r }}</mat-option> }
+                @for (r of roles(); track r.roleId) { <mat-option [value]="r.roleName">{{ r.roleName }}</mat-option> }
               </mat-select>
             </mat-form-field>
             <div class="row-actions">
               <button mat-icon-button aria-label="Edit login details" title="Edit login details / password" (click)="startEdit(o)"><mat-icon>edit</mat-icon></button>
-              <button mat-icon-button aria-label="Remove owner" title="Remove owner" (click)="remove(o)"><mat-icon>delete</mat-icon></button>
+              <button mat-icon-button aria-label="Remove login" title="Remove login" (click)="remove(o)"><mat-icon>delete</mat-icon></button>
             </div>
           }
         </li>
@@ -136,14 +132,13 @@ export class OwnersSettings {
   private readonly dialog = inject(MatDialog);
   private readonly fb = inject(NonNullableFormBuilder);
 
-  protected readonly roles = OWNER_ROLES;
-  protected readonly roleHelp = ROLE_HELP;
+  /** The role master, without SuperAdmin (that is not a studio role). */
+  protected readonly roles = signal<RoleInfo[]>([]);
   protected readonly owners = signal<OwnerInfo[]>([]);
   protected readonly adding = signal(false);
   protected readonly editId = signal<number | null>(null);
   protected readonly editName = signal('');
   protected readonly editPerms = signal<ReadonlySet<string>>(new Set());
-  protected readonly editIsAdmin = signal(false);
   protected readonly permissionGroups = PERMISSION_GROUPS;
   protected readonly busy = signal(false);
 
@@ -163,6 +158,11 @@ export class OwnersSettings {
 
   constructor() {
     this.load();
+    this.api.roles().subscribe((r) => this.roles.set(r.filter((x) => x.roleName !== SUPER_ADMIN)));
+  }
+
+  protected roleHelp(name: OwnerRole): string {
+    return this.roles().find((r) => r.roleName === name)?.description ?? '';
   }
 
   protected create(): void {
@@ -182,7 +182,6 @@ export class OwnersSettings {
     this.editForm.reset({ username: o.username, fullName: o.fullName, email: o.email ?? '', newPassword: '' });
     this.editName.set(o.fullName);
     this.editPerms.set(new Set(o.permissions));
-    this.editIsAdmin.set(o.role === 'Admin');
     this.editId.set(o.ownerId);
     this.adding.set(false);
   }
@@ -195,7 +194,7 @@ export class OwnersSettings {
     const v = this.editForm.getRawValue();
     this.call(
       this.api.updateOwner(this.editId()!, { username: v.username.trim(), fullName: v.fullName.trim(), email: v.email.trim() || null, newPassword: v.newPassword || null,
-        permissions: this.editIsAdmin() ? null : [...this.editPerms()] }),
+        permissions: [...this.editPerms()] }),
       v.newPassword ? 'Details and password updated' : 'Details updated',
       () => this.editId.set(null),
     );
@@ -206,7 +205,7 @@ export class OwnersSettings {
       title: `Remove ${o.fullName}?`,
       message: `${o.username} will no longer be able to sign in, and is signed out straight away. Orders and other data are not affected.`,
       confirmText: 'Remove',
-    }).subscribe((yes) => yes && this.call(this.api.deleteOwner(o.ownerId), 'Owner removed'));
+    }).subscribe((yes) => yes && this.call(this.api.deleteOwner(o.ownerId), 'Login removed'));
   }
 
   private call(request: Observable<unknown>, success: string, after?: () => void): void {

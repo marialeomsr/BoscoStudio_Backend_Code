@@ -7,8 +7,11 @@ using Microsoft.EntityFrameworkCore;
 namespace BoscoStudio.Domain.Entities;
 
 [Index("OrderId", Name = "UQ_Deliverables_Order", IsUnique = true)]
-public partial class Deliverable
+public partial class Deliverable : IStudioScoped
 {
+    /// <summary>The studio this row belongs to (stamped on save, filtered on every query).</summary>
+    public int StudioId { get; set; }
+
     [Key]
     public int DeliverableId { get; set; }
 

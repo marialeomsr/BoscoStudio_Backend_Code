@@ -30,6 +30,12 @@ public class StudioSettingsService(PhotoStudioDbContext db) : IStudioSettingsSer
         s.DefaultTerms = Clean(r.DefaultTerms);
         s.BankDetails = Clean(r.BankDetails);
         s.LogoUrl = Clean(r.LogoUrl);
+        // the studio list / picker shows the same name
+        string name = s.StudioName;
+        if (await db.Studios.AnyAsync(x => x.StudioName == name && x.StudioId != s.StudioId, ct))
+            throw new BoscoStudio.Application.Common.ConflictException($"A studio named '{name}' already exists.");
+        var studio = await db.Studios.FirstAsync(x => x.StudioId == s.StudioId, ct);
+        studio.StudioName = name;
         await db.SaveChangesAsync(ct);
         return ToDto(s);
     }

@@ -3,9 +3,10 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { catchError, finalize, of, tap, timeout } from 'rxjs';
 import { environment } from '../../environments/environment';
-import { LoginRequest, LoginResponse, OwnerRole } from '../models/studio.models';
+import { LoginRequest, LoginResponse, OwnerRole, SUPER_ADMIN } from '../models/studio.models';
 
 const STORAGE_KEY = 'bosco.session';
+const STUDIO_KEY = 'bosco.studio';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -21,6 +22,12 @@ export class AuthService {
   readonly ownerName = computed(() => this.session()?.fullName ?? '');
   readonly role = computed<OwnerRole | null>(() => this.session()?.role ?? null);
   readonly permissions = computed(() => new Set(this.session()?.permissions ?? []));
+  /** The SuperAdmin has no studio of their own: they see every studio, one at a time. */
+  readonly isSuperAdmin = computed(() => this.session()?.role === SUPER_ADMIN);
+  /** The studio being worked in: a studio login's own studio, or the one the SuperAdmin picked (sent as X-Studio-Id). */
+  private readonly pickedStudio = signal<number | null>(Number(localStorage.getItem(STUDIO_KEY)) || null);
+  readonly studioId = computed(() => (this.isSuperAdmin() ? this.pickedStudio() : this.session()?.studioId ?? null));
+  readonly studioName = computed(() => this.session()?.studioName ?? '');
 
   /** Does the signed-in owner hold this permission (e.g. 'orders.delete')? The API checks it again on every call. */
   can(permission: string): boolean {
@@ -28,6 +35,12 @@ export class AuthService {
   }
   get token(): string | null {
     return this.isLoggedIn() ? this.session()!.token : null;
+  }
+
+  /** SuperAdmin only: switch the studio whose data is shown. The page reloads so every screen starts fresh. */
+  pickStudio(id: number): void {
+    localStorage.setItem(STUDIO_KEY, String(id));
+    this.pickedStudio.set(id);
   }
 
   login(credentials: LoginRequest) {
@@ -53,6 +66,8 @@ export class AuthService {
   /** Forget the session locally without calling the API (expired or rejected token). */
   endSession(): void {
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(STUDIO_KEY);
+    this.pickedStudio.set(null);
     this.session.set(null);
     this.router.navigate(['/login']);
   }

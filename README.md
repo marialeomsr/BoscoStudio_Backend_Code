@@ -1,4 +1,4 @@
-# Bosco Studio – Photography Studio Management (single owner)
+# Photo Studio Manager – one application, many studios
 
 SQL Server (database-first) → ASP.NET Core 8 Web API → Angular (standalone, signals, Material).
 
@@ -7,7 +7,9 @@ BoscoStudio.sln
 ├─ Database/
 │  ├─ PhotoStudioDB.sql                      ← full schema + seed (fresh install, run in SSMS)
 │  ├─ 002_EventTypes_Documents_Upgrade.sql   ← upgrade for a database created from the FIRST version of the script
-│  └─ 003_TaxSplit_Roles_Upgrade.sql         ← adds owner roles + CGST/SGST tax split (run after 002)
+│  ├─ 003_TaxSplit_Roles_Upgrade.sql         ← adds owner roles + CGST/SGST tax split (run after 002)
+│  ├─ 008_MultiStudio_Roles_Upgrade.sql      ← multi-studio + Roles master (run after 007; existing data becomes studio 1)
+│  └─ 009_StudioRoles_NoManager.sql          ← owner-scoped roles, Owner gets full studio rights, Manager role removed (run after 008)
 ├─ BoscoStudio/                      ← ASP.NET Core Web API (.NET 8)
 │  ├─ Api/
 │  │  ├─ Controllers/                ← thin HTTP layer: Auth, Orders, Payments, Albums, Documents, Catalog, Lookups, Dashboard
@@ -47,7 +49,7 @@ Request trace: `Controller → IXxxService → PhotoStudioDbContext → SQL`. No
 2. **API** – `cd BoscoStudio; dotnet run --launch-profile http` → <http://localhost:5238/swagger>
    (or press F5 in Visual Studio with the IIS Express profile → <https://localhost:44388/swagger>).
 3. **Frontend** – `cd frontend; npm install; npm start` → <http://localhost:4200>.
-4. **Sign in** – `owner` / `Owner@123`. Change it: generate a hash with any BCrypt tool (cost 11) and
+4. **Sign in** – SuperAdmin `superadmin` / `Owner@123`, or the studio owner `owner` / `Owner@123` (both start with the same password after script 008). Change it: generate a hash with any BCrypt tool (cost 11) and
    `UPDATE OwnerAccounts SET PasswordHash = '<hash>'`.
 
 Before real use: replace `Jwt:SigningKey` (use `dotnet user-secrets`) and move the `sa` password out of appsettings.
@@ -77,22 +79,20 @@ Before real use: replace `Jwt:SigningKey` (use `dotnet user-secrets`) and move t
 * **Discount and tax on documents:** the document editor has Discount and Tax % next to the items, with a live breakdown. They are written
   through to the order (one set of figures everywhere). Refused if the discount exceeds the items total, if the new total is below what was
   paid, or if the order is Delivered/Cancelled.
-* **Owner accounts:** several people can sign in (Settings → Owners). Each can change their own username (needs their password, then a new token
-  is issued), add/remove other owners and set another owner's password. You cannot remove yourself or the last owner. A removed owner is
-  signed out on their next request. What each owner may do depends on their role (below).
-
-* **Roles** (set per owner in Settings → Owners, enforced by the API with 403, and hidden in the UI):
-
-  | | Admin | Manager | Staff |
-  |---|---|---|---|
-  | Orders, calendar, albums, clients, record payments, deliverables | yes | yes | yes |
-  | Delete orders / payments / expenses / clients / albums | yes | yes | no |
-  | Create and edit quotations and invoices (view them is allowed for all) | yes | yes | no |
-  | Settings: studio details, event types, packages | yes | no | no |
-  | Owner accounts and roles | yes | no | no |
-
-  Everyone can change their own username / password under **My account** (top bar). Changing a role signs that person out so they get the new
-  access on their next login. There is always at least one Admin.
+* **Multi-studio:** one installation serves many client studios. The **SuperAdmin** (`superadmin`, no studio of their own) creates studios
+  (Settings → Studios, with the studio's first Owner login) and sees every studio, one at a time (picker in the top bar, sent as the
+  `X-Studio-Id` header; studio logins cannot use it). Every table is filtered by StudioId (EF global query filter, stamped on save), so
+  Studio A can never read or change Studio B's clients, orders, payments, documents, numbering (ORD / INV / QTN run per studio), settings,
+  logins or roles. A studio can be switched off (its logins are refused / signed out) or, while empty, deleted.
+* **Roles** (Roles table): **SuperAdmin** (everything, all studios), **Owner** (full rights inside their own studio: orders, payments, albums,
+  clients, invoices, studio details, event types, packages, logins and roles - everything except the Studios tab and the Login report) and
+  **Staff** (orders, albums, clients, record payments; no deletes / invoices / settings). There is no Manager role. Shared roles are changed by
+  the SuperAdmin only; an Owner can add roles of their own for their studio (Settings → Roles), invisible to other studios.
+* **Reports menu:** Reports is a group in the left menu (Business report, Login report); future reports are added to its list in `core/layout/shell.ts`.
+  **Login report** (SuperAdmin only, not a Settings tab): filters by date, studio,
+  user and event, plus **Export CSV**.
+* **Logins:** each can change their own username / password under **My account**. A removed login is signed out on their next request; a
+  studio always keeps at least one Owner. Changing a role (or editing a role's permissions) ends open sessions so the new access applies.
 * **Tax lines:** per order (and in the document editor) choose one tax line or CGST + SGST. The tax % is split in half for the two lines; the
   total is identical. Order, quotation and invoice all show the same lines.
 * **Validation** (API: `Application/Validators/Rules.cs`, forms: `frontend/src/app/shared/validators.ts` - keep them in step):
@@ -109,3 +109,6 @@ edit incl. items) · **Settings** (studio details printed on documents, event ty
 ## Not built yet
 
 Password reset by email; separate CGST/SGST rates (today the tax % is split in half); more granular permissions than the three roles.
+
+* **Menu:** the hamburger button at the top left collapses the left menu to an icon-only rail and expands it again (remembered in this browser). On a phone the bottom bar is used instead.
+* **Printing:** quotations / invoices print with no page margin so the browser adds no header / footer (page title and address); the sheet supplies its own margin.

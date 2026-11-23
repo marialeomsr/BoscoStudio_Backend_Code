@@ -7,8 +7,11 @@ import {
   PackageInfo, PaymentLedgerItem, UpdateOrderRequest, CreateExpenseRequest, CreatePaymentRequest, Dashboard, Expense,
   OrderDetail, OrderSummary, Payment, UpdateAlbumRequest, UpdateDeliverableRequest,
   CreateOwnerRequest, UpdateOwnerRequest, Branding, LoginResponse, OwnerInfo, OwnerRole, UpdateProfileRequest,
+  Studio, CreateStudioRequest, UpdateStudioRequest, RoleInfo, SaveRoleRequest,
   DateRangeReport, LoginAudit, EventTypeInfo, SaveEventTypeRequest, SavePackageRequest, StudioSettings, UpdateDocumentRequest,
 } from '../models/studio.models';
+
+export interface LoginReportFilter { from?: string; to?: string; studioId?: string; username?: string; eventType?: string }
 
 /** One thin class per backend controller area, all in one file so a request can be traced in seconds. */
 @Injectable({ providedIn: 'root' })
@@ -182,11 +185,44 @@ export class StudioApi {
     return this.http.post<DocumentDetail>(`${this.base}/orders/${orderId}/documents`, body);
   }
 
-  // ----- Sign-in history (Admin) -----
-  loginAudits(filter: { from?: string; to?: string; username?: string; eventType?: string } = {}): Observable<LoginAudit[]> {
+  // ----- Login report (SuperAdmin) -----
+  loginAudits(filter: LoginReportFilter = {}): Observable<LoginAudit[]> {
+    return this.http.get<LoginAudit[]>(`${this.base}/audit/logins`, { params: this.toParams(filter) });
+  }
+  /** CSV file with the same filters; a blob so the auth interceptor still adds the bearer token. */
+  loginAuditsCsv(filter: LoginReportFilter = {}): Observable<Blob> {
+    return this.http.get(`${this.base}/audit/logins/export`, { params: this.toParams(filter), responseType: 'blob' });
+  }
+  private toParams(filter: LoginReportFilter): HttpParams {
     let params = new HttpParams();
     for (const [key, value] of Object.entries(filter)) if (value) params = params.set(key, value);
-    return this.http.get<LoginAudit[]>(`${this.base}/audit/logins`, { params });
+    return params;
+  }
+
+  // ----- Studios and roles (SuperAdmin) -----
+  studios(): Observable<Studio[]> {
+    return this.http.get<Studio[]>(`${this.base}/studios`);
+  }
+  createStudio(body: CreateStudioRequest): Observable<Studio> {
+    return this.http.post<Studio>(`${this.base}/studios`, body);
+  }
+  updateStudioRecord(id: number, body: UpdateStudioRequest): Observable<Studio> {
+    return this.http.put<Studio>(`${this.base}/studios/${id}`, body);
+  }
+  deleteStudio(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/studios/${id}`);
+  }
+  roles(): Observable<RoleInfo[]> {
+    return this.http.get<RoleInfo[]>(`${this.base}/roles`);
+  }
+  createRole(body: SaveRoleRequest): Observable<RoleInfo> {
+    return this.http.post<RoleInfo>(`${this.base}/roles`, body);
+  }
+  updateRole(id: number, body: SaveRoleRequest): Observable<RoleInfo> {
+    return this.http.put<RoleInfo>(`${this.base}/roles/${id}`, body);
+  }
+  deleteRole(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/roles/${id}`);
   }
 
   // ----- Reports -----
