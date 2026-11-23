@@ -104,6 +104,11 @@ interface NavItem { key: string; label: string; icon: string; path?: string; chi
     /* The content always starts right after the menu, whether it is open (220px) or the icon rail (64px). */
     .container.has-side .content { margin-left: 220px !important; }
     .container.has-side.rail .content { margin-left: 64px !important; }
+    /* Print / PDF: the page uses the full width, no space left for the menu. */
+    @media print {
+      :host { display: block; height: auto; }
+      .container.has-side .content, .container.has-side.rail .content { margin-left: 0 !important; padding: 0 !important; }
+    }
     .sidebar.collapsed .side-link { padding: 12px 0; justify-content: center; }
     .sidebar.collapsed .lbl { display: none; }
     .side-link { display: flex; align-items: center; gap: 12px; padding: 12px 20px; color: inherit; text-decoration: none; width: 100%; box-sizing: border-box; background: none; border: 0; font: inherit; cursor: pointer; text-align: left; }

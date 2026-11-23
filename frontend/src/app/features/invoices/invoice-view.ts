@@ -218,6 +218,7 @@ type LineGroup = FormGroup<{
     .totals { display: grid; grid-template-columns: 1fr auto; margin: 12px 0 0 auto; width: min(100%, 300px); row-gap: 4px; dt, dd { margin: 0; } dd { text-align: right; } }
     .strong { font-weight: 700; border-top: 1px solid #ddd; padding-top: 4px; }
     .terms { font-size: 12px; color: #444; }
+    @media print { .top { flex-wrap: nowrap; } .meta { flex: none; text-align: right; } h2 { letter-spacing: 1px; } }
     @media (max-width: 599px) { .sheet { padding: 14px; } .parties { grid-template-columns: 1fr; } .meta { text-align: left; } .lines { font-size: 13px; } }
   `,
 })
