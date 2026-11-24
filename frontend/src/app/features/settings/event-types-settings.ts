@@ -1,3 +1,4 @@
+import { AutoMaxLength } from '../../shared/validators';
 import { Component, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -17,7 +18,7 @@ import { AutoError, eventTypeName, intRange } from '../../shared/validators';
 /** Add / rename / deactivate / delete event types. Packages and orders pick from this list. */
 @Component({
   selector: 'app-event-types-settings',
-  imports: [ReactiveFormsModule, AutoError, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSlideToggleModule],
+  imports: [AutoMaxLength, ReactiveFormsModule, AutoError, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSlideToggleModule],
   template: `
     <div class="head">
       <p class="intro">Event types appear in the order form. Each package belongs to one event type.</p>

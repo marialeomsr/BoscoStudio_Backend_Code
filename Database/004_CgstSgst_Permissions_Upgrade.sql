@@ -4,7 +4,7 @@
    current PhotoStudioDB.sql already contains this - do not run both.
    Run with SSMS, or: sqlcmd -S MARIALEO -U sa -P ... -C -I -i <this file>
    ===================================================================== */
-USE PhotoStudioDB;
+-- (database is chosen by the caller: sqlcmd -d <DbName> ...  or the SSMS database dropdown)
 GO
 
 -- Separate CGST / SGST rates. TaxPercent stays the total; NULL CgstPercent = equal halves (how existing orders were shown).

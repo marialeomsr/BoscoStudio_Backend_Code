@@ -1,3 +1,4 @@
+import { AutoMaxLength } from '../../shared/validators';
 import { Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
@@ -19,7 +20,7 @@ import { ClientEditDialog } from './client-edit-dialog';
 /** Client records: search, add, edit, delete (only when the client has no orders). Table on desktop, cards on phones. */
 @Component({
   selector: 'app-clients',
-  imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, Pager],
+  imports: [AutoMaxLength, ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, Pager],
   template: `
     <header class="page-head teal">
       <span class="ico"><mat-icon>groups</mat-icon></span>

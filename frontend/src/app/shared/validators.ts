@@ -1,5 +1,5 @@
-import { Directive, inject } from '@angular/core';
-import { AbstractControl, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
+import { AfterViewInit, Directive, ElementRef, inject } from '@angular/core';
+import { AbstractControl, FormControl, NgControl, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
 import { MatFormField } from '@angular/material/form-field';
 
 /**
@@ -130,6 +130,7 @@ export const strongPassword: ValidatorFn = (c) => {
   const v = String(c.value ?? '');
   if (!v) return null;
   if (v.length < 8) return fail('password', 'Password must be at least 8 characters.');
+  if (v.length > 100) return fail('password', 'Password can be at most 100 characters.');
   return /\p{L}/u.test(v) && /\d/.test(v) ? null : fail('password', 'Password must contain at least one letter and one number.');
 };
 
@@ -175,5 +176,26 @@ export class AutoError {
 
   protected message(): string {
     return errorText(this.field?._control?.ngControl?.control);
+  }
+}
+
+/** Default cap for a free-text field whose control has no Validators.maxLength (search boxes, login fields). */
+export const DEFAULT_MAX_LENGTH = 100;
+
+/**
+ * Every text input / textarea stops accepting characters at the length its control allows:
+ * the control's own Validators.maxLength when it has one, otherwise DEFAULT_MAX_LENGTH.
+ * Works on matInput fields bound with formControlName / formControl; an explicit maxlength="" attribute wins.
+ */
+@Directive({ selector: 'input[matInput]:not([type=number]):not([type=time]):not([type=date]):not([type=checkbox]), textarea[matInput]' })
+export class AutoMaxLength implements AfterViewInit {
+  private readonly el = inject<ElementRef<HTMLInputElement | HTMLTextAreaElement>>(ElementRef).nativeElement;
+  private readonly ngControl = inject(NgControl, { optional: true, self: true });
+
+  ngAfterViewInit(): void {
+    if (this.el.maxLength > 0) return;
+    const probe = new FormControl('x'.repeat(100_001));
+    const error = this.ngControl?.control?.validator?.(probe)?.['maxlength'] as { requiredLength: number } | undefined;
+    this.el.maxLength = error?.requiredLength ?? DEFAULT_MAX_LENGTH;
   }
 }

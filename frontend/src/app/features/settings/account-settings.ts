@@ -1,3 +1,4 @@
+import { AutoMaxLength } from '../../shared/validators';
 import { Component, inject, signal } from '@angular/core';
 import { AbstractControl, NonNullableFormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -17,7 +18,7 @@ const passwordsMatch = (group: AbstractControl): ValidationErrors | null =>
 /** The signed-in owner's own account: profile (incl. username) and password. */
 @Component({
   selector: 'app-account-settings',
-  imports: [ReactiveFormsModule, InputFilter, AutoError, MatButtonModule, MatFormFieldModule, MatInputModule],
+  imports: [AutoMaxLength, ReactiveFormsModule, InputFilter, AutoError, MatButtonModule, MatFormFieldModule, MatInputModule],
   template: `
     <div class="wrap">
       <form class="card" [formGroup]="profile" (ngSubmit)="saveProfile()">
@@ -67,17 +68,17 @@ export class AccountSettings {
   protected readonly savingProfile = signal(false);
 
   protected readonly profile = this.fb.group({
-    username: ['', [Validators.required, username]],
+    username: ['', [Validators.required, username, Validators.maxLength(50)]],
     fullName: ['', [Validators.required, personName, Validators.maxLength(100)]],
     email: ['', [email, Validators.maxLength(150)]],
-    currentPassword: ['', Validators.required],
+    currentPassword: ['', [Validators.required, Validators.maxLength(100)]],
   });
 
   protected readonly form = this.fb.group(
     {
-      currentPassword: ['', Validators.required],
+      currentPassword: ['', [Validators.required, Validators.maxLength(100)]],
       newPassword: ['', [Validators.required, strongPassword]],
-      confirmPassword: ['', Validators.required],
+      confirmPassword: ['', [Validators.required, Validators.maxLength(100)]],
     },
     { validators: passwordsMatch },
   );

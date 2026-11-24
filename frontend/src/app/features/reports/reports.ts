@@ -1,3 +1,4 @@
+import { DateField } from '../../shared/components/date-field';
 import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, linkedSignal, signal } from '@angular/core';
@@ -23,7 +24,7 @@ interface Preset { label: string; range: () => [Date, Date]; }
 /** Everything between two dates (orders, money in, money out) with a one-click Excel download. Defaults to this month. */
 @Component({
   selector: 'app-reports',
-  imports: [ReactiveFormsModule, DatePipe, RouterLink, InrPipe, Pager, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatTabsModule],
+  imports: [DateField, ReactiveFormsModule, DatePipe, RouterLink, InrPipe, Pager, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatTabsModule],
   template: `
     <header class="page-head blue">
       <span class="ico"><mat-icon>assessment</mat-icon></span>
@@ -31,8 +32,8 @@ interface Preset { label: string; range: () => [Date, Date]; }
     </header>
 
     <div class="panel slim blue filters">
-      <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>From</mat-label><input matInput type="date" [formControl]="from" /></mat-form-field>
-      <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>To</mat-label><input matInput type="date" [formControl]="to" /></mat-form-field>
+      <app-date-field label="From" [formControl]="from"  [dynamic]="true" />
+      <app-date-field label="To" [formControl]="to"  [dynamic]="true" />
       <button mat-flat-button type="button" class="download" [disabled]="!valid() || downloading()" (click)="download()">
         <mat-icon>download</mat-icon>{{ downloading() ? 'Preparing…' : 'Download Excel' }}
       </button>
@@ -240,7 +241,7 @@ export class Reports {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `BoscoStudio-report-${from}_to_${to}.xlsx`;
+        a.download = `StudioManager-report-${from}_to_${to}.xlsx`;
         a.click();
         URL.revokeObjectURL(url);
         this.downloading.set(false);

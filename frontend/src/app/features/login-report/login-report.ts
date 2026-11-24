@@ -1,3 +1,5 @@
+import { AutoMaxLength } from '../../shared/validators';
+import { DateField } from '../../shared/components/date-field';
 import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
@@ -21,7 +23,7 @@ import { fromUtc, toIsoDate } from '../../shared/date-utils';
  */
 @Component({
   selector: 'app-login-report',
-  imports: [ReactiveFormsModule, DatePipe, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule],
+  imports: [AutoMaxLength, DateField, ReactiveFormsModule, DatePipe, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule],
   template: `
     <header class="page-head slate">
       <span class="ico"><mat-icon>history</mat-icon></span>
@@ -30,8 +32,8 @@ import { fromUtc, toIsoDate } from '../../shared/date-utils';
     <section class="panel slate">
       <p class="intro">Sign-ins, sign-outs and failed attempts. A session that simply times out is not recorded as a sign-out. Times are shown in your local time (the download is in UTC).</p>
       <div class="filters">
-        <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>From</mat-label><input matInput type="date" [formControl]="from" /></mat-form-field>
-        <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>To</mat-label><input matInput type="date" [formControl]="to" /></mat-form-field>
+        <app-date-field label="From" [formControl]="from"  [dynamic]="true" />
+        <app-date-field label="To" [formControl]="to"  [dynamic]="true" />
         <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Studio</mat-label>
           <mat-select [formControl]="studioId">
             <mat-option value="">All studios</mat-option>

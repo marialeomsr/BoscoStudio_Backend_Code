@@ -13,11 +13,17 @@ public interface IStudioSettingsService
 /// <summary>The single StudioSettings row: everything printed in a quotation / invoice header and footer.</summary>
 public class StudioSettingsService(PhotoStudioDbContext db) : IStudioSettingsService
 {
-    public async Task<StudioSettingsDto> GetAsync(CancellationToken ct) => ToDto(await db.StudioSettings.AsNoTracking().FirstAsync(ct));
+    // The SuperAdmin has no studio of their own (and a studio may not have a row yet): show empty defaults instead of failing.
+    public async Task<StudioSettingsDto> GetAsync(CancellationToken ct)
+    {
+        var s = await db.StudioSettings.AsNoTracking().FirstOrDefaultAsync(ct);
+        return s is null ? new StudioSettingsDto("", null, null, null, null, null, 0, "INV", "QTN", null, null, null) : ToDto(s);
+    }
 
     public async Task<StudioSettingsDto> UpdateAsync(UpdateStudioSettingsRequest r, CancellationToken ct)
     {
-        var s = await db.StudioSettings.FirstAsync(ct);
+        var s = await db.StudioSettings.FirstOrDefaultAsync(ct)
+            ?? throw new BoscoStudio.Application.Common.BusinessRuleException("Studio details belong to a studio. Sign in as the studio's Owner (or open a studio) to edit them.");
         s.StudioName = r.StudioName.Trim();
         s.Tagline = Clean(r.Tagline);
         s.AddressLine = Clean(r.AddressLine);

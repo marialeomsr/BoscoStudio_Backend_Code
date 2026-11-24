@@ -1,3 +1,5 @@
+import { AutoMaxLength } from '../../../shared/validators';
+import { DateField } from '../../../shared/components/date-field';
 import { DatePipe } from '@angular/common';
 import { Component, computed, inject, input, numberAttribute, signal } from '@angular/core';
 import { FormControl, FormGroup, NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -65,7 +67,7 @@ type AlbumForm = FormGroup<{
  */
 @Component({
   selector: 'app-order-detail',
-  imports: [
+  imports: [AutoMaxLength, DateField, 
     ReactiveFormsModule, RouterLink, AutoError, DatePipe, InrPipe, StatusBadge,
     MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule,
   ],

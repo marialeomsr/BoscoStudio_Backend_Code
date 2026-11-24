@@ -12,7 +12,7 @@
    This also replaces Packages.PackageType from 006 (a package that only has an
    Album price is simply an album-only package).
    ===================================================================== */
-USE PhotoStudioDB;
+-- (database is chosen by the caller: sqlcmd -d <DbName> ...  or the SSMS database dropdown)
 GO
 
 -- ---------- Packages: price per part ----------

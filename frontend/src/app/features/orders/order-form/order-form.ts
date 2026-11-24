@@ -1,3 +1,5 @@
+import { AutoMaxLength } from '../../../shared/validators';
+import { DateField } from '../../../shared/components/date-field';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -34,7 +36,7 @@ type SlotGroup = FormGroup<{
 /** Create (orders/new?date=yyyy-MM-dd) and edit (orders/:id/edit) in one form. */
 @Component({
   selector: 'app-order-form',
-  imports: [ReactiveFormsModule, RouterLink, InrPipe, InputFilter, AutoError, MatButtonModule, MatCheckboxModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule],
+  imports: [AutoMaxLength, DateField, ReactiveFormsModule, RouterLink, InrPipe, InputFilter, AutoError, MatButtonModule, MatCheckboxModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule],
   templateUrl: './order-form.html',
   styleUrl: './order-form.scss',
 })

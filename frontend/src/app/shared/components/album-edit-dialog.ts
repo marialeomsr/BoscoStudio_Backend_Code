@@ -1,3 +1,4 @@
+import { AutoMaxLength } from '../validators';
 import { Component, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -22,7 +23,7 @@ export interface AlbumEditData {
 /** Edit album type, sheets and print vendor details at any stage. Closes with the updated Album, or undefined if dismissed. */
 @Component({
   selector: 'app-album-edit-dialog',
-  imports: [ReactiveFormsModule, AutoError, MatDialogModule, MatButtonModule, MatFormFieldModule, MatInputModule],
+  imports: [AutoMaxLength, ReactiveFormsModule, AutoError, MatDialogModule, MatButtonModule, MatFormFieldModule, MatInputModule],
   template: `
     <h2 mat-dialog-title>Edit album</h2>
     <form [formGroup]="form" (ngSubmit)="save()">

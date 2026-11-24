@@ -1,3 +1,4 @@
+import { AutoMaxLength } from '../../../shared/validators';
 import { DatePipe } from '@angular/common';
 import { Component, computed, inject, linkedSignal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -19,7 +20,7 @@ import { InrPipe } from '../../../shared/pipes/inr.pipe';
 /** Table on desktop, stacked cards on phones (pure CSS, see styles). */
 @Component({
   selector: 'app-order-list',
-  imports: [ReactiveFormsModule, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule, MatSelectModule, RouterLink, DatePipe, InrPipe, StatusBadge, Pager],
+  imports: [AutoMaxLength, ReactiveFormsModule, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule, MatSelectModule, RouterLink, DatePipe, InrPipe, StatusBadge, Pager],
   template: `
     <header class="page-head blue">
       <span class="ico"><mat-icon>receipt_long</mat-icon></span>

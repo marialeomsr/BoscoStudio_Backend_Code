@@ -1,3 +1,4 @@
+import { AutoMaxLength } from '../../shared/validators';
 import { Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -24,7 +25,7 @@ import { AutoError, money } from '../../shared/validators';
  */
 @Component({
   selector: 'app-packages-settings',
-  imports: [ReactiveFormsModule, AutoError, InrPipe, MatButtonModule, MatCheckboxModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule, MatSlideToggleModule],
+  imports: [AutoMaxLength, ReactiveFormsModule, AutoError, InrPipe, MatButtonModule, MatCheckboxModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule, MatSlideToggleModule],
   template: `
     <div class="head">
       <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter">

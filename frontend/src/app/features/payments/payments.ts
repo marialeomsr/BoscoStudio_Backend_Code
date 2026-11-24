@@ -1,3 +1,4 @@
+import { DateField } from '../../shared/components/date-field';
 import { DatePipe } from '@angular/common';
 import { Component, computed, inject, linkedSignal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -17,15 +18,15 @@ import { InrPipe } from '../../shared/pipes/inr.pipe';
 /** Every payment received, newest first, with totals. Defaults to the current month. */
 @Component({
   selector: 'app-payments',
-  imports: [ReactiveFormsModule, DatePipe, RouterLink, InrPipe, Pager, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule],
+  imports: [DateField, ReactiveFormsModule, DatePipe, RouterLink, InrPipe, Pager, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule],
   template: `
     <header class="page-head green">
       <span class="ico"><mat-icon>payments</mat-icon></span>
       <h1>Payments <span class="sub">money received</span></h1>
     </header>
     <div class="panel slim green filters">
-      <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>From</mat-label><input matInput type="date" [formControl]="from" /></mat-form-field>
-      <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>To</mat-label><input matInput type="date" [formControl]="to" /></mat-form-field>
+      <app-date-field label="From" [formControl]="from"  [dynamic]="true" />
+      <app-date-field label="To" [formControl]="to"  [dynamic]="true" />
       <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Mode</mat-label>
         <mat-select [formControl]="mode"><mat-option value="">All</mat-option>@for (m of modes; track m) { <mat-option [value]="m">{{ m }}</mat-option> }</mat-select>
       </mat-form-field>

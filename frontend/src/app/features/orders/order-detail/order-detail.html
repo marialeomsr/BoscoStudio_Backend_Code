@@ -116,9 +116,7 @@
               <input matInput type="number" inputmode="decimal" formControlName="amount" />
               <button mat-button matSuffix type="button" (click)="fillBalance()">Full balance</button>
             <mat-error auto></mat-error></mat-form-field>
-            <mat-form-field appearance="outline"><mat-label>Date</mat-label>
-              <input matInput type="date" formControlName="paymentDate" />
-            <mat-error auto></mat-error></mat-form-field>
+            <app-date-field label="Date" formControlName="paymentDate" />
             <mat-form-field appearance="outline" class="wide"><mat-label>Transaction ref (optional)</mat-label>
               <input matInput formControlName="transactionRef" />
             <mat-error auto></mat-error></mat-form-field>
@@ -294,7 +292,7 @@
               }
               <mat-form-field appearance="outline"><mat-label>Delivery via</mat-label>
                 <mat-select formControlName="cloudProvider"><mat-option value="">None</mat-option>@for (p of cloudProviders; track p) { <mat-option [value]="p">{{ p }}</mat-option> }</mat-select><mat-error auto></mat-error></mat-form-field>
-              <mat-form-field appearance="outline"><mat-label>Delivered on</mat-label><input matInput type="date" formControlName="deliveredOn" /><mat-error auto></mat-error></mat-form-field>
+              <app-date-field label="Delivered on" formControlName="deliveredOn" />
               <mat-form-field appearance="outline" class="wide"><mat-label>Delivery link</mat-label><input matInput type="url" formControlName="cloudLink" placeholder="https://" /><mat-error auto></mat-error></mat-form-field>
               <div class="actions wide"><button mat-flat-button type="submit" [disabled]="busy()">Save deliverables</button></div>
             </form>

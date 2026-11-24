@@ -1,3 +1,4 @@
+import { AutoMaxLength } from '../../shared/validators';
 import { DatePipe } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -20,7 +21,7 @@ import { AutoError, email, personName, strongPassword, username } from '../../sh
 /** The logins (owner / staff) of the studio in scope, and what each may do. Roles come from the Roles master table. */
 @Component({
   selector: 'app-owners-settings',
-  imports: [ReactiveFormsModule, InputFilter, AutoError, DatePipe, MatButtonModule, MatCheckboxModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule],
+  imports: [AutoMaxLength, ReactiveFormsModule, InputFilter, AutoError, DatePipe, MatButtonModule, MatCheckboxModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule],
   template: `
     <div class="head">
       <p class="intro">Each person of this studio signs in with their own username and password. The role decides what they can do. Studios only ever see their own logins.</p>
@@ -143,14 +144,14 @@ export class OwnersSettings {
   protected readonly busy = signal(false);
 
   protected readonly form = this.fb.group({
-    username: ['', [Validators.required, username]],
+    username: ['', [Validators.required, username, Validators.maxLength(50)]],
     fullName: ['', [Validators.required, personName, Validators.maxLength(100)]],
     email: ['', [email, Validators.maxLength(150)]],
     password: ['', [Validators.required, strongPassword]],
     role: this.fb.control<OwnerRole>('Staff'),
   });
   protected readonly editForm = this.fb.group({
-    username: ['', [Validators.required, username]],
+    username: ['', [Validators.required, username, Validators.maxLength(50)]],
     fullName: ['', [Validators.required, personName, Validators.maxLength(100)]],
     email: ['', [email, Validators.maxLength(150)]],
     newPassword: ['', strongPassword],   // blank = keep the current password

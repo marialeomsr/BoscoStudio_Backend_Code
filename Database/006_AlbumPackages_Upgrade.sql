@@ -11,7 +11,7 @@
      - Albums.PrintCost     : unchanged, now treated as cost of the album, not an order expense
    Existing albums get SellingPrice 0, so no existing order total or balance changes.
    ===================================================================== */
-USE PhotoStudioDB;
+-- (database is chosen by the caller: sqlcmd -d <DbName> ...  or the SSMS database dropdown)
 GO
 
 IF COL_LENGTH(N'dbo.Packages', N'PackageType') IS NULL

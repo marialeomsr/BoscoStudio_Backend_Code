@@ -1,3 +1,5 @@
+import { AutoMaxLength } from '../../shared/validators';
+import { DateField } from '../../shared/components/date-field';
 import { DatePipe } from '@angular/common';
 import { Component, computed, inject, input, numberAttribute, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -27,7 +29,7 @@ type LineGroup = FormGroup<{
 /** A4-style quotation / invoice. The Print button uses the browser's print dialog (Save as PDF works too). */
 @Component({
   selector: 'app-invoice-view',
-  imports: [DatePipe, ReactiveFormsModule, AutoError, RouterLink, InrPipe, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule],
+  imports: [AutoMaxLength, DateField, DatePipe, ReactiveFormsModule, AutoError, RouterLink, InrPipe, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule],
   template: `
     @if (doc(); as d) {
       <div class="toolbar no-print">
@@ -40,8 +42,7 @@ type LineGroup = FormGroup<{
       @if (editing()) {
         <form class="editor no-print" [formGroup]="form" (ngSubmit)="save(d)">
           <h3>Edit {{ d.documentType.toLowerCase() }} {{ d.documentNumber }}</h3>
-          <mat-form-field appearance="outline"><mat-label>{{ d.documentType === 'Quotation' ? 'Valid until' : 'Due date' }}</mat-label>
-            <input matInput type="date" formControlName="dueDate" /><mat-error auto></mat-error></mat-form-field>
+          <app-date-field [label]="d.documentType === 'Quotation' ? 'Valid until' : 'Due date'" formControlName="dueDate" />
           <mat-form-field appearance="outline"><mat-label>Notes</mat-label><textarea matInput rows="2" formControlName="notes"></textarea><mat-error auto></mat-error></mat-form-field>
           <mat-form-field appearance="outline"><mat-label>Terms &amp; conditions</mat-label><textarea matInput rows="6" formControlName="terms"></textarea><mat-error auto></mat-error></mat-form-field>
 

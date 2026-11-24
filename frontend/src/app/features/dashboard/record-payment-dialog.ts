@@ -1,3 +1,5 @@
+import { AutoMaxLength } from '../../shared/validators';
+import { DateField } from '../../shared/components/date-field';
 import { Component, computed, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -17,7 +19,7 @@ import { AutoError, notFuture, positiveMoney, transactionRef } from '../../share
 /** Quick "record a payment" from anywhere: pick an order that still owes money, enter the amount, save. */
 @Component({
   selector: 'app-record-payment-dialog',
-  imports: [ReactiveFormsModule, AutoError, MatDialogModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatSelectModule, InrPipe],
+  imports: [AutoMaxLength, DateField, ReactiveFormsModule, AutoError, MatDialogModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatSelectModule, InrPipe],
   template: `
     <h2 mat-dialog-title>Record payment</h2>
     <form [formGroup]="form" (ngSubmit)="save()">
@@ -40,7 +42,7 @@ import { AutoError, notFuture, positiveMoney, transactionRef } from '../../share
           <mat-form-field appearance="outline"><mat-label>Amount</mat-label>
             <input matInput type="number" inputmode="decimal" formControlName="amount" />
             @if (selected(); as s) { <mat-hint>Balance due {{ s.balanceDue | inr }}</mat-hint> }<mat-error auto></mat-error></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>Date</mat-label><input matInput type="date" formControlName="paymentDate" /><mat-error auto></mat-error></mat-form-field>
+          <app-date-field label="Date" formControlName="paymentDate" />
           <mat-form-field appearance="outline" class="full"><mat-label>Transaction ref (optional)</mat-label><input matInput formControlName="transactionRef" /><mat-error auto></mat-error></mat-form-field>
         </div>
       </mat-dialog-content>

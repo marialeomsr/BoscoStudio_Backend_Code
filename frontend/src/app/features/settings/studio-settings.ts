@@ -1,3 +1,4 @@
+import { AutoMaxLength } from '../../shared/validators';
 import { Component, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -13,7 +14,7 @@ import { AutoError, email, httpUrl, percent, phone, taxRegistration } from '../.
 /** The details printed in the header and footer of every quotation and invoice. */
 @Component({
   selector: 'app-studio-settings-form',
-  imports: [ReactiveFormsModule, InputFilter, AutoError, MatButtonModule, MatFormFieldModule, MatInputModule],
+  imports: [AutoMaxLength, ReactiveFormsModule, InputFilter, AutoError, MatButtonModule, MatFormFieldModule, MatInputModule],
   template: `
     <form [formGroup]="form" (ngSubmit)="save()">
       <p class="intro">These details appear on every quotation and invoice. Changes apply to documents immediately, including ones already issued.</p>

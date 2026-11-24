@@ -1,3 +1,4 @@
+import { AutoMaxLength } from '../../shared/validators';
 import { Component, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -22,7 +23,7 @@ import { AutoError } from '../../shared/validators';
  */
 @Component({
   selector: 'app-roles-settings',
-  imports: [ReactiveFormsModule, AutoError, MatButtonModule, MatCheckboxModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSlideToggleModule],
+  imports: [AutoMaxLength, ReactiveFormsModule, AutoError, MatButtonModule, MatCheckboxModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSlideToggleModule],
   template: `
     <div class="head">
       <p class="intro">Shared roles come with the application and only the SuperAdmin can change them. Add your own roles for this studio; they are not visible to any other studio. People sign in again to pick up changes.</p>

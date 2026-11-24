@@ -1,3 +1,4 @@
+import { AutoMaxLength } from '../../shared/validators';
 import { DatePipe } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -20,7 +21,7 @@ import { AutoError, email, personName, strongPassword, username } from '../../sh
 /** SuperAdmin: the client studios. Each studio has its own owner / staff logins and sees only its own data. */
 @Component({
   selector: 'app-studios-settings',
-  imports: [ReactiveFormsModule, InputFilter, AutoError, DatePipe, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSlideToggleModule],
+  imports: [AutoMaxLength, ReactiveFormsModule, InputFilter, AutoError, DatePipe, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSlideToggleModule],
   template: `
     <div class="head">
       <p class="intro">One application, many studios. Every studio gets its own owner login and sees only its own clients, orders and settings. Open a studio to manage its event types, packages, studio details and staff logins.</p>

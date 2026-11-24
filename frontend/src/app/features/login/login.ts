@@ -1,3 +1,4 @@
+import { AutoMaxLength } from '../../shared/validators';
 import { Component, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -17,7 +18,7 @@ import { AppFooter } from '../../shared/components/app-footer';
  */
 @Component({
   selector: 'app-login',
-  imports: [ReactiveFormsModule, AppFooter, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule],
+  imports: [AutoMaxLength, ReactiveFormsModule, AppFooter, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule],
   template: `
     <main class="screen">
       <section class="brand">
@@ -120,8 +121,8 @@ export class Login {
   protected readonly tagline = signal('Bookings, payments and deliveries, all in one place.');
 
   protected readonly form = new FormGroup({
-    username: new FormControl('', { nonNullable: true, validators: Validators.required }),
-    password: new FormControl('', { nonNullable: true, validators: Validators.required }),
+    username: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(100)] }),
+    password: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(100)] }),
   });
 
   constructor() {

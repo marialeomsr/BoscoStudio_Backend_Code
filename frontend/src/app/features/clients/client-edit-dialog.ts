@@ -1,3 +1,4 @@
+import { AutoMaxLength } from '../../shared/validators';
 import { Component, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -15,7 +16,7 @@ import { AutoError, email, personName, phone, requiredPhone } from '../../shared
 /** Add (client = null) or edit a client. Closes with the saved record, or undefined if dismissed. */
 @Component({
   selector: 'app-client-edit-dialog',
-  imports: [ReactiveFormsModule, InputFilter, AutoError, MatDialogModule, MatButtonModule, MatFormFieldModule, MatInputModule],
+  imports: [AutoMaxLength, ReactiveFormsModule, InputFilter, AutoError, MatDialogModule, MatButtonModule, MatFormFieldModule, MatInputModule],
   template: `
     <h2 mat-dialog-title>{{ data ? 'Edit client' : 'New client' }}</h2>
     <form [formGroup]="form" (ngSubmit)="save()">

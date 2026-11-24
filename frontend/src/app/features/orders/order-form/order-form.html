@@ -66,7 +66,7 @@
       <div formArrayName="slots">
         @for (slot of slots.controls; track $index) {
           <div class="slot" [formGroupName]="$index">
-            <mat-form-field appearance="outline"><mat-label>Date</mat-label><input matInput type="date" formControlName="eventDate" /><mat-error auto></mat-error></mat-form-field>
+            <app-date-field label="Date" formControlName="eventDate" />
             <mat-form-field appearance="outline"><mat-label>From</mat-label><input matInput type="time" formControlName="startTime" /><mat-error auto></mat-error></mat-form-field>
             <mat-form-field appearance="outline"><mat-label>To</mat-label><input matInput type="time" formControlName="endTime" /><mat-error auto></mat-error></mat-form-field>
             <mat-form-field appearance="outline" class="slot-title"><mat-label>Title (e.g. Haldi)</mat-label><input matInput formControlName="title" /><mat-error auto></mat-error></mat-form-field>
