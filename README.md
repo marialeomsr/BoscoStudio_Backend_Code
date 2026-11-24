@@ -105,10 +105,3 @@ Login · **Home** (quick actions, KPI cards, overdue "Needs update" alert, upcom
 6-month revenue vs expenses chart, albums by stage) · Orders (list, create/edit form, detail with payments / expenses / albums / deliverables, quotation & invoice, delete) ·
 Calendar (Month/Week/Day) · Albums (incl. edit print vendor) · **Clients** · Payments ledger · Quotations & invoices (list, print/PDF view,
 edit incl. items) · **Settings** (studio details printed on documents, event types, packages per event type, account password).
-
-## Not built yet
-
-Password reset by email; separate CGST/SGST rates (today the tax % is split in half); more granular permissions than the three roles.
-
-* **Menu:** the hamburger button at the top left collapses the left menu to an icon-only rail and expands it again (remembered in this browser). On a phone the bottom bar is used instead.
-* **Printing:** quotations / invoices print with no page margin so the browser adds no header / footer (page title and address); the sheet supplies its own margin.
